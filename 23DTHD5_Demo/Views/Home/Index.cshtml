@@ -1,0 +1,360 @@
+﻿<section id="auth-shell" class="auth-shell" aria-label="Xác thực tài khoản">
+    <div class="auth-brand-panel">
+        <div class="brand-mark">象</div>
+        <p class="eyebrow">23 DTHD5 · CỜ TƯỚNG ONLINE</p>
+        <h1>Thắng bằng<br /><em>nước cờ</em> của bạn.</h1>
+        <p class="brand-copy">Kết nối với kỳ thủ khắp nơi, luyện tập mỗi ngày và bước vào ván đấu với phong thái riêng.</p>
+        <div class="brand-stats"><span><strong>12K+</strong><small>Kỳ thủ</small></span><span><strong>24/7</strong><small>Sẵn sàng</small></span><span><strong>4.9</strong><small>Đánh giá</small></span></div>
+    </div>
+    <div class="auth-card-wrap">
+        <div class="auth-card">
+            <div class="mobile-brand"><span class="brand-mark">象</span><span>Bá Khí</span></div>
+            <div class="auth-head"><p class="eyebrow">CHÀO MỪNG TRỞ LẠI</p><h2 id="auth-title">Đăng nhập</h2><p id="auth-subtitle">Đăng nhập để tiếp tục vào sảnh chờ.</p></div>
+            <div class="auth-tabs" role="tablist"><button class="auth-tab active" data-auth-view="login">Đăng nhập</button><button class="auth-tab" data-auth-view="register">Tạo tài khoản</button></div>
+
+            <form id="login-form" class="auth-form" novalidate>
+                <label>Email hoặc tên đăng nhập<input id="login-identity" type="text" autocomplete="username" placeholder="Nhập email hoặc tên đăng nhập" /><span class="field-error" data-error-for="login-identity"></span></label>
+                <label>Mật khẩu<div class="password-input"><input id="login-password" type="password" autocomplete="current-password" placeholder="Nhập mật khẩu" /><button type="button" class="password-toggle" data-toggle-password="login-password">Hiện</button></div><span class="field-error" data-error-for="login-password"></span></label>
+                <div class="form-row"><label class="check-label"><input type="checkbox" id="remember-me" /> <span>Ghi nhớ đăng nhập</span></label><button type="button" class="text-button" data-auth-view="forgot">Quên mật khẩu?</button></div>
+                <p id="login-feedback" class="form-feedback" role="alert"></p><button class="primary-button" type="submit">Đăng nhập <span>→</span></button>
+            </form>
+
+            <form id="register-form" class="auth-form hidden" novalidate>
+                <div class="form-grid"><label>Tên đăng nhập<input id="register-username" type="text" autocomplete="username" placeholder="vd: kythu123" /><span class="field-error" data-error-for="register-username"></span></label><label>Tên hiển thị<input id="register-display" type="text" placeholder="Tên của bạn" /><span class="field-error" data-error-for="register-display"></span></label></div>
+                <label>Email<input id="register-email" type="email" autocomplete="email" placeholder="you@example.com" /><span class="field-error" data-error-for="register-email"></span></label>
+                <label>Mật khẩu<div class="password-input"><input id="register-password" type="password" autocomplete="new-password" placeholder="Tối thiểu 8 ký tự" /><button type="button" class="password-toggle" data-toggle-password="register-password">Hiện</button></div><div class="password-meter"><i></i></div><small class="hint">Ít nhất 1 hoa, 1 thường, 1 số và 1 ký tự đặc biệt</small><span class="field-error" data-error-for="register-password"></span></label>
+                <label>Xác nhận mật khẩu<input id="register-confirm" type="password" autocomplete="new-password" placeholder="Nhập lại mật khẩu" /><span class="field-error" data-error-for="register-confirm"></span></label>
+                <p id="register-feedback" class="form-feedback" role="alert"></p><button class="primary-button" type="submit">Đăng ký <span>→</span></button>
+            </form>
+
+            <form id="forgot-form" class="auth-form hidden" novalidate>
+                <button type="button" class="back-button" data-auth-view="login">← Quay lại đăng nhập</button><div class="step-icon">✦</div><h3 id="forgot-heading">Tìm lại tài khoản</h3><p id="forgot-copy">Nhập email đã đăng ký, chúng tôi sẽ gửi mã xác thực cho bạn.</p>
+                <label>Email<input id="forgot-email" type="email" autocomplete="email" placeholder="you@example.com" /><span class="field-error" data-error-for="forgot-email"></span></label><p id="forgot-feedback" class="form-feedback" role="alert"></p><button class="primary-button" type="submit" id="forgot-submit">Gửi mã xác thực <span>→</span></button>
+            </form>
+            <div class="social-divider"><span>hoặc tiếp tục với</span></div><div class="social-buttons"><button type="button" data-provider="Google"><b>G</b></button><button type="button" data-provider="Facebook"><b>f</b></button><button type="button" data-provider="Apple ID"><b>●</b></button></div>
+            <p class="auth-legal">Bằng việc tiếp tục, bạn đồng ý với <a href="#">Điều khoản</a> và <a href="#">Chính sách bảo mật</a>.</p>
+        </div>
+    </div>
+</section>
+<div id="otp-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="otp-title"><div class="otp-modal"><button class="modal-close" type="button" data-close-modal>×</button><div class="step-icon">✉</div><p class="eyebrow">XÁC THỰC EMAIL</p><h3 id="otp-title">Nhập mã xác thực OTP</h3><p>Mã 6 số đã được gửi đến <strong id="otp-email"></strong></p><div class="otp-inputs"><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /></div><p id="otp-feedback" class="form-feedback" role="alert"></p><div class="otp-footer"><span>Mã hết hạn sau <strong id="otp-countdown">01:59</strong></span><button id="resend-otp" class="text-button" type="button" disabled>Gửi lại mã</button></div><button id="verify-otp" class="primary-button" type="button">Xác nhận mã <span>→</span></button><p class="demo-otp">Demo: mã OTP là <b>123456</b></p></div></div>
+<div id="display-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="otp-modal"><div class="step-icon">✦</div><p class="eyebrow">BƯỚC CUỐI CÙNG</p><h3>Chọn tên hiển thị</h3><p>Tên này sẽ xuất hiện với những kỳ thủ khác trong sảnh chờ.</p><label>Tên hiển thị<input id="social-display" type="text" placeholder="Tên của bạn" /></label><p id="display-feedback" class="form-feedback"></p><button id="save-display" class="primary-button" type="button">Vào sảnh chờ <span>→</span></button></div></div>
+<section id="lobby-shell" class="lobby-shell hidden" aria-label="Sảnh chờ">
+    <div class="lobby-topbar"><div class="lobby-brand"><span class="brand-mark">象</span><div><strong>Bá Khí</strong><small>SẢNH CHỜ</small></div></div><div class="lobby-user"><span class="online-dot"></span><span id="lobby-player-name">Kỳ thủ</span><button id="logout-button" class="ghost-button">Đăng xuất</button></div></div>
+    <div class="lobby-content"><div class="lobby-heading"><div><p class="eyebrow">NƠI NHỮNG VÁN CỜ BẮT ĐẦU</p><h2>Sảnh chờ</h2><p>Tìm một đối thủ phù hợp hoặc tự tạo phòng của riêng bạn.</p></div><button id="create-room-button" class="primary-button create-button">＋ Tạo phòng mới</button></div>
+        <div class="lobby-toolbar"><div class="room-search"><span>⌕</span><input id="room-search" placeholder="Tìm theo tên phòng hoặc chủ phòng" /></div><div class="room-filters"><button class="filter-button active" data-room-filter="all">Tất cả</button><button class="filter-button" data-room-filter="waiting">Đang chờ</button><button class="filter-button" data-room-filter="private">Riêng tư</button></div></div>
+        <div id="room-list" class="room-list"></div><div id="empty-rooms" class="empty-rooms hidden"><div>♜</div><h3>Chưa có phòng phù hợp</h3><p>Hãy là người đầu tiên tạo một phòng mới.</p></div>
+    </div>
+</section>
+<div id="create-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal"><button class="modal-close" type="button" data-close-room-modal>×</button><p class="eyebrow">TẠO KHÔNG GIAN THI ĐẤU</p><h3>Tạo phòng mới</h3><p class="modal-intro">Tùy chỉnh ván cờ theo cách bạn muốn.</p><form id="create-room-form" class="room-form"><label>Tên phòng<input id="room-name" required maxlength="40" /></label><div class="room-section-title">Chế độ phòng</div><div class="mode-options"><label class="mode-option active"><input type="radio" name="room-mode" value="public" checked /><span><b>🔓 Công khai</b><small>Ai cũng có thể thấy và tham gia</small></span></label><label class="mode-option"><input type="radio" name="room-mode" value="private" /><span><b>🔒 Riêng tư</b><small>Chỉ truy cập bằng mật khẩu hoặc link</small></span></label></div><div id="private-options" class="private-options hidden"><label>Mật khẩu phòng <small>(tùy chọn)</small><input id="room-password" pattern="[A-Za-z0-9]{4,6}" maxlength="6" placeholder="4–6 chữ số / ký tự" /><span class="hint">Có thể để trống nếu chỉ dùng link mời.</span></label></div><div class="settings-grid"><label>Thời gian mỗi bên<select id="room-total-time"><option value="10">10 phút</option><option value="15">15 phút</option><option value="20">20 phút</option></select></label><label>Thời gian mỗi nước<select id="room-move-time"><option value="30">30 giây</option><option value="60">60 giây</option><option value="0">Không giới hạn</option></select></label><label>Chọn phe<select id="room-side"><option value="random">Ngẫu nhiên</option><option value="red">Đỏ (đi trước)</option><option value="black">Đen (đi sau)</option></select></label></div><label class="switch-row"><span><b>Cho phép khán giả vào xem</b><small>Người khác có thể xem khi ván đấu bắt đầu</small></span><input id="room-spectators" type="checkbox" checked /><i></i></label><p id="create-room-feedback" class="form-feedback"></p><div class="room-actions"><button type="button" class="ghost-button" data-close-room-modal>Hủy bỏ</button><button type="submit" class="primary-button">Xác nhận tạo phòng <span>→</span></button></div></form></div></div>
+<div id="room-access-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal compact"><button class="modal-close" type="button" data-close-access-modal>×</button><div class="step-icon">🔐</div><p class="eyebrow">PHÒNG RIÊNG TƯ</p><h3>Nhập mật khẩu phòng</h3><p id="access-room-copy" class="modal-intro"></p><form id="room-access-form"><label>Mật khẩu phòng<input id="access-password" type="password" maxlength="6" autocomplete="off" placeholder="Nhập mật khẩu" autofocus /></label><p id="access-feedback" class="form-feedback"></p><button class="primary-button" type="submit">Xác nhận & vào phòng <span>→</span></button></form></div></div>
+<div id="invite-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal compact"><button class="modal-close" type="button" data-close-invite-modal>×</button><div class="step-icon">↗</div><p class="eyebrow">CHIA SẺ PHÒNG</p><h3>Link mời đã sẵn sàng</h3><p class="modal-intro">Gửi link này cho đối thủ của bạn. Link riêng tư đã bao gồm quyền truy cập an toàn.</p><div class="invite-link"><input id="invite-link-input" readonly /><button id="copy-invite" type="button">Sao chép</button></div><p id="invite-feedback" class="form-feedback success"></p></div></div>
+<style>
+    .game-layout {
+        display: flex;
+        justify-content: center;
+        align-items: flex-start;
+        gap: 25px;
+        width: 100%;
+        margin-top: 20px;
+    }
+
+
+    /* ==========================
+       BÀN CỜ
+       ========================== */
+
+    .board-section {
+        flex: 0 1 700px;
+    }
+
+
+    .chess-board {
+        position: relative;
+        width: 100%;
+        max-width: 700px;
+    }
+
+
+    .board-image {
+        display: block;
+        width: 100%;
+        height: auto;
+    }
+
+
+    .piece {
+        position: absolute;
+        width: 7%;
+        height: auto;
+        transform: translate(-50%, -50%);
+        cursor: pointer;
+        z-index: 10;
+        transition: left 0.2s ease, top 0.2s ease;
+    }
+
+
+        .piece.selected {
+            filter: drop-shadow( 0 0 6px blue );
+            transform: translate(-50%, -50%) scale(1.15);
+        }
+
+
+    /* ==========================
+       CHAT
+       ========================== */
+
+    .chat-panel {
+        width: 320px;
+        height: 600px;
+        display: flex;
+        flex-direction: column;
+        border: 1px solid #ccc;
+        border-radius: 8px;
+        background: white;
+        overflow: hidden;
+    }
+
+
+    .chat-header {
+        padding: 15px;
+        font-size: 18px;
+        font-weight: bold;
+        border-bottom: 1px solid #ddd;
+    }
+
+
+        .chat-header small {
+            display: block;
+            margin-top: 3px;
+            font-size: 12px;
+            font-weight: normal;
+            color: #777;
+        }
+
+
+    .chat-messages {
+        flex: 1;
+        padding: 12px;
+        overflow-y: auto;
+        text-align: left;
+    }
+
+
+    .chat-message {
+        padding: 7px 5px;
+        border-bottom: 1px solid #eee;
+        word-break: break-word;
+    }
+
+
+    .no-message {
+        margin-top: 20px;
+        text-align: center;
+        color: #999;
+    }
+
+
+    /* ==========================
+       INPUT CHAT
+       ========================== */
+
+    .chat-input {
+        display: flex;
+        padding: 10px;
+        gap: 8px;
+        border-top: 1px solid #ddd;
+    }
+
+
+        .chat-input input {
+            flex: 1;
+            min-width: 0;
+            padding: 9px;
+            border: 1px solid #ccc;
+            border-radius: 5px;
+            outline: none;
+        }
+
+
+        .chat-input button {
+            padding: 9px 15px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+
+    .video-call {
+        margin-top: 20px;
+    }
+
+    .video-container {
+        display: flex;
+        gap: 10px;
+    }
+
+        .video-container video {
+            width: 250px;
+            height: 190px;
+            background: black;
+            object-fit: cover;
+            border-radius: 5px;
+        }
+
+    .video-call button {
+        margin-top: 10px;
+        padding: 10px 20px;
+        cursor: pointer;
+    }
+</style>
+<div id="app">
+
+    <div class="game-layout">
+
+
+        <!-- ========================= -->
+        <!-- BÀN CỜ -->
+        <!-- ========================= -->
+
+        <div class="board-section">
+
+            <h2>Game Cờ Tướng</h2>
+
+            <div class="chess-board"
+                 ref="board"
+                 @@click="moveTo">
+
+                <img class="board-image"
+                     src="/images/bancotuong.jpg"
+                     draggable="false" />
+
+
+                <img v-for="piece in pieces"
+                     :key="piece.id"
+                     :src="'/images/' + piece.file"
+                     class="piece"
+                     :class="{
+                        selected:
+                            selectedPiece?.id === piece.id
+                     }"
+                     :style="getPieceStyle(piece)"
+                     @@click.stop="selectPiece(piece)"
+                     draggable="false" />
+
+            </div>
+
+        </div>
+
+
+
+        <!-- ========================= -->
+        <!-- CHAT -->
+        <!-- ========================= -->
+
+        <div class="chat-panel">
+
+            <div class="chat-header">
+
+                Phòng chat
+
+                <small>
+                    {{ roomId }}
+                </small>
+
+            </div>
+
+
+            <!-- DANH SÁCH TIN NHẮN -->
+
+            <div class="chat-messages"
+                 ref="chatMessages">
+
+                <div v-if="messages.length === 0"
+                     class="no-message">
+
+                    Chưa có tin nhắn
+
+                </div>
+
+
+                <div v-for="(item, index) in messages"
+                     :key="index"
+                     class="chat-message">
+
+                    <strong>
+                        {{ item.userName }}:
+                    </strong>
+
+                    <span>
+                        {{ item.message }}
+                    </span>
+
+                </div>
+
+            </div>
+
+
+            <!-- NHẬP CHAT -->
+
+            <div class="chat-input">
+
+                <input type="text"
+                       v-model="chatMessage"
+                       placeholder="Nhập tin nhắn..."
+                       @@keyup.enter="sendMessage" />
+
+
+                <button type="button"
+                        @@click="sendMessage">
+
+                    Gửi
+
+                </button>
+
+            </div>
+
+        </div>
+
+    </div>
+
+    <div class="video-call">
+
+        <div class="video-container">
+
+            <div>
+                <p>Camera của bạn</p>
+
+                <video ref="localVideo"
+                       autoplay
+                       muted
+                       playsinline>
+                </video>
+            </div>
+
+
+            <div>
+                <p>Đối thủ</p>
+
+                <video ref="remoteVideo"
+                       autoplay
+                       playsinline>
+                </video>
+            </div>
+
+        </div>
+
+
+        <button type="button"
+                @@click="startCall">
+
+            Gọi video
+
+        </button>
+
+    </div>
+
+</div>
+<script src="/js/auth.js"></script>
+<script src="/js/lobby.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
+<script src="/js/cotuong.js"></script>
