@@ -71,6 +71,20 @@ try {
         Start-Sleep -Milliseconds 100
     }
     if (-not $ready) { throw 'The application page did not finish loading.' }
+    $googleEnabled = Evaluate "(async () => (await (await fetch('/api/auth/google/status')).json()).enabled)()"
+    if (-not $googleEnabled) {
+        $null = Evaluate "document.querySelector('[data-provider=Google]').click(); true"
+        $googleNotice = $false
+        for ($attempt = 0; $attempt -lt 150; $attempt++) {
+            try {
+                $googleNotice = Evaluate "!!window.hongKyAuth && !document.querySelector('[data-provider=Google]').disabled && document.querySelector('#login-feedback').textContent.includes('Google') && !location.search.includes('authError')"
+                if ($googleNotice) { break }
+            } catch { }
+            Start-Sleep -Milliseconds 100
+        }
+        if (-not $googleNotice) { throw 'Google button did not show the missing-configuration message.' }
+        Write-Output 'PASS: Google button reports missing configuration after a CSRF-protected navigation.'
+    }
     $registrationFlow = @'
 (async () => {
     const wait = async (predicate) => { for (let i = 0; i < 150; i++) { if (predicate()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('Timed out waiting for UI'); };

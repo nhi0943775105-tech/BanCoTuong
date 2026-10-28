@@ -30,6 +30,14 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
   .AddClaimsPrincipalFactory<ApplicationClaimsFactory>()
   .AddErrorDescriber<VietnameseIdentityErrors>()
   .AddDefaultTokenProviders();
+builder.Services.AddGoogleLogin(builder.Configuration);
+builder.Services.AddScoped<GoogleAccountService>();
+builder.Services.ConfigureExternalCookie(options =>
+{
+    options.Cookie.Name = "HongKy.External";
+    options.Cookie.HttpOnly = true;
+    options.ExpireTimeSpan = TimeSpan.FromMinutes(5);
+});
 builder.Services.ConfigureApplicationCookie(options =>
 {
     options.Cookie.Name = "HongKy.Auth";
@@ -95,3 +103,5 @@ app.MapControllerRoute(
     pattern: "{controller=Home}/{action=Index}/{id?}");
 app.MapHub<ChessHub>("/chessHub");
 app.Run();
+
+public partial class Program { }

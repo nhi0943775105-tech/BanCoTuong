@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.RateLimiting;
 using Microsoft.Data.SqlClient;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.AspNetCore.Authentication;
 
 namespace _23DTHD5_Demo.Controllers.api;
 
@@ -100,6 +101,7 @@ public class AuthController(
         if (result.IsLockedOut)
             return StatusCode(StatusCodes.Status423Locked, new { message = "Tài khoản tạm khóa do nhập sai nhiều lần. Vui lòng thử lại sau 5 phút." });
         if (!result.Succeeded) return InvalidLogin();
+        await HttpContext.SignOutAsync(IdentityConstants.ExternalScheme);
         return Ok(new { account = Account(user) });
     }
 
@@ -117,6 +119,8 @@ public class AuthController(
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
         var user = await users.FindByEmailAsync(request.Email.Trim());
+        // Google-only accounts must authenticate with Google; demo OTP must not create a local password for them.
+        if (user is not null && !await users.HasPasswordAsync(user)) user = null;
         pending.Set(HttpContext, "reset", new PendingAuth
         {
             ResetUserId = user?.Id,

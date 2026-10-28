@@ -2,6 +2,7 @@
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => [...document.querySelectorAll(selector)];
     let otpState = null, countdownTimer = null;
+    let pendingGoogleLink = false;
     const auth = window.hongKyAuth = { account: null, ready: null, post };
     // Remove old demo credentials. Authentication now uses the server's HttpOnly cookie.
     ["hongky_accounts", "hongky_session", "hongky_reset_token"].forEach((key) => localStorage.removeItem(key));
@@ -50,6 +51,7 @@
     }
 
     function setView(view) {
+        if (view !== "login") pendingGoogleLink = false;
         ["login", "register", "forgot"].forEach((name) => $(`#${name}-form`).classList.toggle("hidden", name !== view));
         $$(".auth-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.authView === view));
         $("#auth-title").textContent = { login: "Đăng nhập", register: "Tạo tài khoản", forgot: "Khôi phục mật khẩu" }[view];
@@ -111,7 +113,8 @@
         submitting(event.currentTarget, async () => {
             const identity = $("#login-identity").value.trim(), password = $("#login-password").value;
             if (!identity || !password) throw new Error("Vui lòng nhập đầy đủ thông tin.");
-            const result = await post("login", { identity, password, rememberMe: $("#remember-me").checked });
+            const result = await post(pendingGoogleLink ? "google/link" : "login", { identity, password, rememberMe: $("#remember-me").checked });
+            pendingGoogleLink = false;
             enterLobby(result.account);
         }, "#login-feedback");
     });
@@ -200,10 +203,50 @@
         const meter = $(".password-meter i"); meter.style.width = `${score * 20}%`;
         meter.style.background = score < 3 ? "#bf4f45" : score < 5 ? "#c5963f" : "#2c8563";
     });
-    $$("[data-provider]").forEach((button) => button.addEventListener("click", () => {
+    $$("[data-provider]").forEach((button) => button.addEventListener("click", async () => {
         const target = $("#register-form").classList.contains("hidden") ? "#login-feedback" : "#register-feedback";
-        feedback(target, `Đăng nhập bằng ${button.dataset.provider} sẽ được bổ sung sau.`);
+        if (button.dataset.provider !== "Google") {
+            feedback(target, `Đăng nhập bằng ${button.dataset.provider} sẽ được bổ sung sau.`);
+            return;
+        }
+        button.disabled = true;
+        try {
+            const csrf = await readResponse(await fetch("/api/auth/csrf", { credentials: "same-origin", cache: "no-store" }));
+            // A normal form navigation allows the OAuth challenge to redirect to Google.
+            const form = document.createElement("form");
+            form.method = "POST";
+            form.action = "/api/auth/google/start";
+            form.hidden = true;
+            for (const [name, value] of Object.entries({ __RequestVerificationToken: csrf.token, rememberMe: String($("#remember-me").checked) })) {
+                const input = document.createElement("input");
+                input.type = "hidden"; input.name = name; input.value = value;
+                form.appendChild(input);
+            }
+            document.body.appendChild(form);
+            form.submit();
+        } catch (error) {
+            feedback(target, error.message || "Không thể bắt đầu đăng nhập Google.");
+            button.disabled = false;
+        }
     }));
+
+    const authQuery = new URLSearchParams(location.search);
+    const authError = authQuery.get("authError");
+    if (authError) {
+        const messages = {
+            google_not_configured: "Đăng nhập Google chưa được bật. Vui lòng dùng tài khoản và mật khẩu.",
+            google_cancelled: "Bạn đã hủy đăng nhập Google. Có thể thử lại bất cứ lúc nào.",
+            google_failed: "Không thể xác thực Google. Vui lòng thử lại.",
+            google_account_failed: "Không thể tạo tài khoản từ Google. Vui lòng thử lại.",
+            google_locked: "Tài khoản tạm khóa. Vui lòng thử lại sau 5 phút.",
+            google_retry: "Tài khoản vừa được cập nhật. Vui lòng bấm Google để thử lại.",
+            google_link_required: "Email Google đã có tài khoản. Nhập tên đăng nhập hoặc email và mật khẩu của tài khoản đó để liên kết Google."
+        };
+        pendingGoogleLink = authError === "google_link_required";
+        feedback("#login-feedback", messages[authError] || "Không thể đăng nhập. Vui lòng thử lại.");
+        authQuery.delete("authError");
+        history.replaceState({}, "", location.pathname + (authQuery.size ? "?" + authQuery.toString() : "") + location.hash);
+    }
 
     auth.ready = (async () => {
         $("#app").classList.add("hidden");
