@@ -52,8 +52,8 @@ OTP hết hạn sau 120 giây, giới hạn 5 lần nhập sai; chỉ được g
 Phiên OTP/bản nháp tồn tại tối đa 10 phút trong bộ nhớ; nếu restart ứng dụng, người dùng cần bắt đầu đăng ký/khôi phục lại.
 Sai mật khẩu 5 lần khóa tài khoản trong 5 phút. Các API xác thực có kiểm tra CSRF và giới hạn tần suất.
 
-Đăng nhập Google đã có luồng tích hợp; cần cấu hình OAuth Client theo hướng dẫn bên dưới.
-Facebook và Apple chưa triển khai; các nút chỉ thông báo sẽ bổ sung sau.
+Đăng nhập Google và Facebook đã có luồng tích hợp; cần cấu hình khóa riêng của từng ứng dụng theo hướng dẫn bên dưới.
+Apple chưa triển khai; nút chỉ thông báo sẽ bổ sung sau.
 Tài khoản demo cũ trong localStorage không được chuyển sang SQL Server; cần đăng ký lại.
 Danh sách phòng vẫn dùng localStorage theo thiết kế hiện tại; phần này chưa chuyển sang database.
 
@@ -64,7 +64,7 @@ Danh sách phòng vẫn dùng localStorage theo thiết kế hiện tại; phầ
 | `AspNetUsers` | Tài khoản, tên hiển thị, email, password hash, thời gian tạo, trạng thái khóa |
 | `AspNetRoles`, `AspNetUserRoles` | Vai trò và liên kết người dùng/vai trò theo chuẩn Identity |
 | `AspNetUserClaims`, `AspNetRoleClaims` | Thuộc tính/quyền theo chuẩn Identity |
-| `AspNetUserLogins` | Liên kết ID tài khoản Google với người dùng trong game |
+| `AspNetUserLogins` | Liên kết ID tài khoản Google/Facebook với người dùng trong game |
 | `AspNetUserTokens` | Token theo chuẩn Identity |
 | `__EFMigrationsHistory` | Các migration đã áp dụng |
 
@@ -121,6 +121,57 @@ Không cần migration mới vì `AspNetUserLogins` đã có trong migration Ide
 Tài liệu: [Google trên ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/google-logins?view=aspnetcore-8.0),
 [Google OAuth/OpenID Connect](https://developers.google.com/identity/openid-connect/openid-connect).
 
+## Bật đăng nhập Facebook
+
+1. Mở [Meta for Developers → My Apps](https://developers.facebook.com/apps/), chọn Create App và đặt tên, ví dụ BanCoTuong.
+2. Chọn use case Facebook Login (có thể có tên “Authenticate and request data from users with Facebook Login” hoặc “Allow people to log in with their Facebook account”). Dùng luồng đăng nhập Facebook cho người chơi; không chọn Facebook Login for Business.
+3. Trong Use cases → Facebook Login → Customize, bật quyền `email` bên cạnh `public_profile`.
+4. Vào phần Settings của Facebook Login, bật Client OAuth Login và Web OAuth Login.
+5. Thêm **Valid OAuth Redirect URI** chính xác: **`https://localhost:7026/signin-facebook`**, rồi Save Changes.
+6. Nếu Meta hỏi nền tảng Website/Site URL, dùng `https://localhost:7026/` cho bản phát triển.
+7. Trong App settings → Basic, lấy **App ID** và **App Secret** (nút Show có thể yêu cầu xác nhận mật khẩu Facebook).
+
+Giao diện Meta có thể thay đổi tên/vị trí menu theo tài khoản; callback và quyền email vẫn cần cấu hình đúng.
+Khi ứng dụng ở Development mode, thêm thành viên nhóm vào App roles (Developer/Tester) và yêu cầu họ chấp nhận lời mời trước khi thử.
+Để mở cho người dùng ngoài nhóm, hoàn thành các yêu cầu xuất bản/quyền truy cập Meta hiển thị trên dashboard,
+bao gồm các URL chính sách quyền riêng tư và xóa dữ liệu nếu được yêu cầu. Không cần xuất bản chỉ để thử trong nhóm có vai trò trên app.
+
+Nhập App ID/App Secret trên mỗi máy phát triển:
+
+```powershell
+powershell -NoProfile -ExecutionPolicy Bypass -File .\scripts\Set-FacebookLogin.ps1
+```
+
+App Secret được ẩn khi nhập, lưu vào .NET User Secrets và không đưa vào Git hoặc tham số dòng lệnh.
+Script chỉ cập nhật cấu hình Facebook, giữ nguyên cấu hình Google và các User Secrets khác.
+Người khác pull code phải nhập cấu hình trên máy mình; có thể dùng chung Meta app và thêm nhau vào App roles.
+
+Chạy lại ứng dụng bằng HTTPS:
+
+```powershell
+dotnet run --project .\23DTHD5_Demo --launch-profile https
+```
+
+Mở **https://localhost:7026**, bấm **f**, chọn tài khoản Facebook và cấp quyền.
+Nếu Facebook báo redirect không hợp lệ, kiểm tra URL có đúng HTTPS, localhost, cổng 7026 và `/signin-facebook` không.
+Nếu gặp lỗi thiếu quyền `email`/Invalid Scopes, kiểm tra quyền email trong use case và tài khoản thử có vai trò trên app.
+Nếu Facebook không chia sẻ email (ví dụ chỉ có số điện thoại hoặc người dùng từ chối quyền),
+đăng ký mới sẽ báo rõ; tài khoản Facebook đã liên kết vẫn có thể đăng nhập theo ID mà không cần email trả về lại.
+
+Lần đầu, server tạo người dùng có tên đăng nhập bắt đầu bằng `fb`, tên hiển thị từ hồ sơ Facebook,
+và liên kết Facebook ID trong `AspNetUserLogins`. Không tạo mật khẩu game giả.
+Nếu email trùng tài khoản game, nhập mật khẩu game để liên kết; không tự gộp tài khoản chỉ bằng email.
+Nếu tài khoản đang dùng Google, đăng nhập Google trước rồi bấm **Liên kết Facebook** trong sảnh.
+Liên kết được gắn với phiên đăng nhập đã bắt đầu yêu cầu, không tự chuyển Facebook đang thuộc tài khoản khác.
+
+Endpoint `/api/auth/facebook/status` cho biết đã nạp đủ App ID/App Secret hay chưa, không xác nhận khóa có hợp lệ với Meta.
+Các endpoint được cấu hình Graph API v22.0 theo handler ASP.NET Core hiện hành, thay cho mặc định v14.0 cũ trong package .NET 8.
+Khi deploy, cấu hình `Authentication__Facebook__AppId` và `Authentication__Facebook__AppSecret` trên máy chủ,
+và cập nhật callback sang tên miền HTTPS thật. Không cần migration mới vì dùng bảng Identity hiện có.
+
+Tài liệu: [Facebook Login cho ASP.NET Core](https://learn.microsoft.com/en-us/aspnet/core/security/authentication/social/facebook-logins?view=aspnetcore-8.0),
+[Facebook Login for Web](https://developers.facebook.com/docs/facebook-login/web/).
+
 ## Thay đổi cấu trúc database về sau
 
 Sửa model/DbContext, rồi tạo một migration mới:
@@ -164,3 +215,14 @@ callback giả mạo, email chưa xác thực, hủy đăng nhập, tạo và đ
 liên kết tài khoản cũ sau khi kiểm tra mật khẩu, trạng thái khóa và chống đặt lại mật khẩu Google bằng OTP demo.
 Các tài khoản thử được tự dọn theo hậu tố email ngẫu nhiên riêng cho từng lần chạy.
 Kiểm thử Gmail thật cần bạn cấu hình OAuth Client và tự chọn tài khoản trên trang Google.
+
+Kiểm thử Facebook bằng phản hồi giả lập, không liên hệ Meta hoặc cần App ID/App Secret thật:
+
+```powershell
+dotnet run --project .\tests\FacebookLoginChecks
+```
+
+Bộ kiểm thử dùng middleware OAuth thật và SQL Server: tạo tài khoản, đăng nhập lại, hủy đăng nhập,
+state/correlation/PKCE, app secret proof, thiếu email, khóa tài khoản, liên kết bằng mật khẩu,
+liên kết khi đã đăng nhập, chống chiếm liên kết và chống đổi phiên đăng nhập giữa lúc OAuth.
+Tài khoản thử có hậu tố email ngẫu nhiên, được tự dọn sau khi chạy.

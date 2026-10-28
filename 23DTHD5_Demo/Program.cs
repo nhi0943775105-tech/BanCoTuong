@@ -31,7 +31,8 @@ builder.Services.AddIdentity<ApplicationUser, IdentityRole>(options =>
   .AddErrorDescriber<VietnameseIdentityErrors>()
   .AddDefaultTokenProviders();
 builder.Services.AddGoogleLogin(builder.Configuration);
-builder.Services.AddScoped<GoogleAccountService>();
+builder.Services.AddFacebookLogin(builder.Configuration);
+builder.Services.AddScoped<ExternalAccountService>();
 builder.Services.ConfigureExternalCookie(options =>
 {
     options.Cookie.Name = "HongKy.External";

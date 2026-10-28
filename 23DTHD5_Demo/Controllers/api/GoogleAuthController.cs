@@ -18,7 +18,7 @@ namespace _23DTHD5_Demo.Controllers.api;
 public class GoogleAuthController(
     UserManager<ApplicationUser> users,
     SignInManager<ApplicationUser> signIn,
-    GoogleAccountService accounts,
+    ExternalAccountService accounts,
     IAuthenticationSchemeProvider schemes) : ControllerBase
 {
     [HttpGet("status")]

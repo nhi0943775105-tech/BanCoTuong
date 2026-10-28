@@ -60,7 +60,7 @@ internal static class GoogleLoginChecks
         .WithWebHostBuilder(builder =>
         {
             builder.UseEnvironment("Development");
-            builder.ConfigureLogging(logging => logging.SetMinimumLevel(LogLevel.Error));
+            builder.ConfigureLogging(logging => logging.AddFilter("Microsoft.EntityFrameworkCore", LogLevel.Warning));
             builder.ConfigureTestServices(services =>
                 services.PostConfigure<GoogleOptions>(GoogleDefaults.AuthenticationScheme, options =>
                     options.Backchannel = new HttpClient(new FakeGoogle())));

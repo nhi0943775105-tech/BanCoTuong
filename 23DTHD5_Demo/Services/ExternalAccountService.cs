@@ -6,7 +6,7 @@ using Microsoft.EntityFrameworkCore;
 
 namespace _23DTHD5_Demo.Services;
 
-public class GoogleAccountService(ApplicationDbContext database, UserManager<ApplicationUser> users)
+public class ExternalAccountService(ApplicationDbContext database, UserManager<ApplicationUser> users)
 {
     public async Task<ApplicationUser?> CreateAsync(ExternalLoginInfo info)
     {
@@ -15,9 +15,15 @@ public class GoogleAccountService(ApplicationDbContext database, UserManager<App
         if (displayName.Length > 30) displayName = displayName[..30];
         if (displayName.Length > 0 && char.IsHighSurrogate(displayName[^1])) displayName = displayName[..^1];
         if (displayName.Length < 2) displayName = "Kỳ thủ";
+        var prefix = info.LoginProvider switch
+        {
+            "Google" => "gg",
+            "Facebook" => "fb",
+            _ => throw new ArgumentException("Unsupported login provider.", nameof(info))
+        };
         var user = new ApplicationUser
         {
-            UserName = "gg" + Guid.NewGuid().ToString("N")[..16],
+            UserName = prefix + Guid.NewGuid().ToString("N")[..16],
             DisplayName = displayName,
             Email = email,
             EmailConfirmed = true

@@ -2,7 +2,7 @@
     const $ = (selector) => document.querySelector(selector);
     const $$ = (selector) => [...document.querySelectorAll(selector)];
     let otpState = null, countdownTimer = null;
-    let pendingGoogleLink = false;
+    let pendingExternalLink = null;
     const auth = window.hongKyAuth = { account: null, ready: null, post };
     // Remove old demo credentials. Authentication now uses the server's HttpOnly cookie.
     ["hongky_accounts", "hongky_session", "hongky_reset_token"].forEach((key) => localStorage.removeItem(key));
@@ -51,7 +51,7 @@
     }
 
     function setView(view) {
-        if (view !== "login") pendingGoogleLink = false;
+        if (view !== "login") pendingExternalLink = null;
         ["login", "register", "forgot"].forEach((name) => $(`#${name}-form`).classList.toggle("hidden", name !== view));
         $$(".auth-tab").forEach((tab) => tab.classList.toggle("active", tab.dataset.authView === view));
         $("#auth-title").textContent = { login: "Đăng nhập", register: "Tạo tài khoản", forgot: "Khôi phục mật khẩu" }[view];
@@ -113,8 +113,8 @@
         submitting(event.currentTarget, async () => {
             const identity = $("#login-identity").value.trim(), password = $("#login-password").value;
             if (!identity || !password) throw new Error("Vui lòng nhập đầy đủ thông tin.");
-            const result = await post(pendingGoogleLink ? "google/link" : "login", { identity, password, rememberMe: $("#remember-me").checked });
-            pendingGoogleLink = false;
+            const result = await post(pendingExternalLink ? `${pendingExternalLink}/link` : "login", { identity, password, rememberMe: $("#remember-me").checked });
+            pendingExternalLink = null;
             enterLobby(result.account);
         }, "#login-feedback");
     });
@@ -204,18 +204,19 @@
         meter.style.background = score < 3 ? "#bf4f45" : score < 5 ? "#c5963f" : "#2c8563";
     });
     $$("[data-provider]").forEach((button) => button.addEventListener("click", async () => {
-        const target = $("#register-form").classList.contains("hidden") ? "#login-feedback" : "#register-feedback";
-        if (button.dataset.provider !== "Google") {
+        const target = auth.account ? "#lobby-auth-feedback" : ($("#register-form").classList.contains("hidden") ? "#login-feedback" : "#register-feedback");
+        const provider = { Google: "google", Facebook: "facebook" }[button.dataset.provider];
+        if (!provider) {
             feedback(target, `Đăng nhập bằng ${button.dataset.provider} sẽ được bổ sung sau.`);
             return;
         }
         button.disabled = true;
         try {
             const csrf = await readResponse(await fetch("/api/auth/csrf", { credentials: "same-origin", cache: "no-store" }));
-            // A normal form navigation allows the OAuth challenge to redirect to Google.
+            // Navigate normally so that the OAuth challenge can redirect to the provider.
             const form = document.createElement("form");
             form.method = "POST";
-            form.action = "/api/auth/google/start";
+            form.action = `/api/auth/${provider}/start`;
             form.hidden = true;
             for (const [name, value] of Object.entries({ __RequestVerificationToken: csrf.token, rememberMe: String($("#remember-me").checked) })) {
                 const input = document.createElement("input");
@@ -225,13 +226,14 @@
             document.body.appendChild(form);
             form.submit();
         } catch (error) {
-            feedback(target, error.message || "Không thể bắt đầu đăng nhập Google.");
+            feedback(target, error.message || `Không thể bắt đầu đăng nhập ${button.dataset.provider}.`);
             button.disabled = false;
         }
     }));
 
     const authQuery = new URLSearchParams(location.search);
     const authError = authQuery.get("authError");
+    let externalMessage = "", externalSuccess = false;
     if (authError) {
         const messages = {
             google_not_configured: "Đăng nhập Google chưa được bật. Vui lòng dùng tài khoản và mật khẩu.",
@@ -240,20 +242,38 @@
             google_account_failed: "Không thể tạo tài khoản từ Google. Vui lòng thử lại.",
             google_locked: "Tài khoản tạm khóa. Vui lòng thử lại sau 5 phút.",
             google_retry: "Tài khoản vừa được cập nhật. Vui lòng bấm Google để thử lại.",
-            google_link_required: "Email Google đã có tài khoản. Nhập tên đăng nhập hoặc email và mật khẩu của tài khoản đó để liên kết Google."
+            google_link_required: "Email Google đã có tài khoản. Nhập tên đăng nhập hoặc email và mật khẩu của tài khoản đó để liên kết Google.",
+            facebook_not_configured: "Đăng nhập Facebook chưa được bật. Vui lòng dùng Google hoặc tài khoản và mật khẩu.",
+            facebook_cancelled: "Bạn đã hủy đăng nhập Facebook. Có thể thử lại bất cứ lúc nào.",
+            facebook_failed: "Không thể xác thực Facebook. Vui lòng thử lại.",
+            facebook_account_failed: "Không thể tạo tài khoản từ Facebook. Vui lòng thử lại.",
+            facebook_email_missing: "Facebook chưa chia sẻ email. Hãy cấp quyền email khi đăng nhập, hoặc dùng Google/tài khoản và mật khẩu.",
+            facebook_locked: "Tài khoản tạm khóa. Vui lòng thử lại sau 5 phút.",
+            facebook_retry: "Tài khoản vừa được cập nhật. Vui lòng bấm Facebook để thử lại.",
+            facebook_link_conflict: "Facebook này đã liên kết với tài khoản khác. Vui lòng dùng Facebook khác.",
+            facebook_link_required: "Email Facebook đã có tài khoản. Nhập tài khoản và mật khẩu để liên kết. Nếu tài khoản dùng Google, hãy đăng nhập bằng Google rồi chọn Liên kết Facebook trong sảnh."
         };
-        pendingGoogleLink = authError === "google_link_required";
-        feedback("#login-feedback", messages[authError] || "Không thể đăng nhập. Vui lòng thử lại.");
+        pendingExternalLink = { google_link_required: "google", facebook_link_required: "facebook" }[authError] || null;
+        externalMessage = messages[authError] || "Không thể đăng nhập. Vui lòng thử lại.";
+        feedback("#login-feedback", externalMessage);
         authQuery.delete("authError");
-        history.replaceState({}, "", location.pathname + (authQuery.size ? "?" + authQuery.toString() : "") + location.hash);
     }
+    if (authQuery.get("authNotice") === "facebook_linked") {
+        externalMessage = "Đã liên kết Facebook. Từ lần sau, bạn có thể dùng Facebook để đăng nhập tài khoản này.";
+        externalSuccess = true;
+        authQuery.delete("authNotice");
+    }
+    if (authError || externalSuccess) history.replaceState({}, "", location.pathname + (authQuery.size ? "?" + authQuery.toString() : "") + location.hash);
 
     auth.ready = (async () => {
         $("#app").classList.add("hidden");
         try {
             const response = await fetch("/api/auth/me", { credentials: "same-origin", cache: "no-store" });
             if (response.status === 401) return null;
-            const result = await readResponse(response); enterLobby(result.account); return result.account;
+            const result = await readResponse(response);
+            enterLobby(result.account);
+            if (externalMessage) feedback("#lobby-auth-feedback", externalMessage, externalSuccess);
+            return result.account;
         } catch {
             feedback("#login-feedback", "Không thể kiểm tra phiên đăng nhập. Vui lòng kiểm tra kết nối máy chủ.");
             return null;

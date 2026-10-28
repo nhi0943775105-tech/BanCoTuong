@@ -85,6 +85,20 @@ try {
         if (-not $googleNotice) { throw 'Google button did not show the missing-configuration message.' }
         Write-Output 'PASS: Google button reports missing configuration after a CSRF-protected navigation.'
     }
+    $facebookEnabled = Evaluate "(async () => (await (await fetch('/api/auth/facebook/status')).json()).enabled)()"
+    if (-not $facebookEnabled) {
+        $null = Evaluate "document.querySelector('[data-provider=Facebook]').click(); true"
+        $facebookNotice = $false
+        for ($attempt = 0; $attempt -lt 150; $attempt++) {
+            try {
+                $facebookNotice = Evaluate "!!window.hongKyAuth && !document.querySelector('[data-provider=Facebook]').disabled && document.querySelector('#login-feedback').textContent.includes('Facebook') && !location.search.includes('authError')"
+                if ($facebookNotice) { break }
+            } catch { }
+            Start-Sleep -Milliseconds 100
+        }
+        if (-not $facebookNotice) { throw 'Facebook button did not show the missing-configuration message.' }
+        Write-Output 'PASS: Facebook button reports missing configuration after a CSRF-protected navigation.'
+    }
     $registrationFlow = @'
 (async () => {
     const wait = async (predicate) => { for (let i = 0; i < 150; i++) { if (predicate()) return; await new Promise(r => setTimeout(r, 100)); } throw new Error('Timed out waiting for UI'); };

@@ -119,7 +119,7 @@ public class AuthController(
     public async Task<IActionResult> ForgotPassword(ForgotPasswordRequest request)
     {
         var user = await users.FindByEmailAsync(request.Email.Trim());
-        // Google-only accounts must authenticate with Google; demo OTP must not create a local password for them.
+        // Provider-only accounts must authenticate with their provider, not create a password using demo OTP.
         if (user is not null && !await users.HasPasswordAsync(user)) user = null;
         pending.Set(HttpContext, "reset", new PendingAuth
         {
