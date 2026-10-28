@@ -9,15 +9,16 @@
     ];
     let currentFilter = "all", currentRoom = null;
     const save = () => localStorage.setItem(roomKey, JSON.stringify(rooms));
-    const session = () => JSON.parse(localStorage.getItem("hongky_session") || "{}") || {};
+    const session = () => window.hongKyAuth.account || {};
     const display = () => session().displayName || "Kỳ thủ";
+    const escapeHtml = (value) => String(value).replace(/[&<>"']/g, (char) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[char]));
 
     function showLobby() { $("#lobby-player-name").textContent = display(); $("#lobby-shell").classList.remove("hidden"); $("#app").classList.add("hidden"); renderRooms(); }
     function formatTime(room) { return `${room.total} phút · ${room.move === "0" ? "Không giới hạn" : room.move + " giây/nước"}`; }
     function renderRooms() {
         const query = ($("#room-search").value || "").toLowerCase();
         const visible = rooms.filter((room) => (currentFilter === "all" || (currentFilter === "private" ? room.mode === "private" : room.status === "waiting")) && `${room.name} ${room.owner}`.toLowerCase().includes(query));
-        $("#room-list").innerHTML = visible.map((room) => { const playing = room.status === "playing"; const action = playing ? (room.spectators ? "👁 Xem trận" : "Phòng đã đủ người") : "Vào bàn"; return `<article class="room-card"><div class="room-card-top"><span class="room-badge ${room.mode === "private" ? "private" : ""}">${room.mode === "private" ? "🔒 Riêng tư" : "🔓 Công khai"}</span><span class="room-status">${playing ? "● Đang thi đấu" : "○ Đang đợi đối thủ"}</span></div><h3 title="${room.name}">${room.name}</h3><div class="room-owner">Chủ phòng · ${room.owner}</div><div class="room-meta"><span>⏱ ${formatTime(room)}</span><span>♟ ${room.side === "random" ? "Ngẫu nhiên" : room.side === "red" ? "Đỏ" : "Đen"}</span></div><button class="primary-button room-card-action ${playing ? "watch" : ""}" data-room-id="${room.id}" ${playing && !room.spectators ? "disabled" : ""}>${action} <span>→</span></button></article>`; }).join(""); $("#empty-rooms").classList.toggle("hidden", visible.length > 0); $$("[data-room-id]").forEach((button) => button.addEventListener("click", () => accessRoom(button.dataset.roomId))); }
+        $("#room-list").innerHTML = visible.map((room) => { const playing = room.status === "playing"; const action = playing ? (room.spectators ? "👁 Xem trận" : "Phòng đã đủ người") : "Vào bàn"; return `<article class="room-card"><div class="room-card-top"><span class="room-badge ${room.mode === "private" ? "private" : ""}">${room.mode === "private" ? "🔒 Riêng tư" : "🔓 Công khai"}</span><span class="room-status">${playing ? "● Đang thi đấu" : "○ Đang đợi đối thủ"}</span></div><h3 title="${escapeHtml(room.name)}">${escapeHtml(room.name)}</h3><div class="room-owner">Chủ phòng · ${escapeHtml(room.owner)}</div><div class="room-meta"><span>⏱ ${formatTime(room)}</span><span>♟ ${room.side === "random" ? "Ngẫu nhiên" : room.side === "red" ? "Đỏ" : "Đen"}</span></div><button class="primary-button room-card-action ${playing ? "watch" : ""}" data-room-id="${room.id}" ${playing && !room.spectators ? "disabled" : ""}>${action} <span>→</span></button></article>`; }).join(""); $("#empty-rooms").classList.toggle("hidden", visible.length > 0); $$("[data-room-id]").forEach((button) => button.addEventListener("click", () => accessRoom(button.dataset.roomId))); }
     function enterRoom(room, role) { currentRoom = room; $("#lobby-shell").classList.add("hidden"); $("#app").classList.remove("hidden"); localStorage.setItem("hongky_current_room", JSON.stringify({ id: room.id, role })); history.pushState({}, "", `/room/${room.id}`); }
     function accessRoom(id) { const room = rooms.find((item) => item.id === id); if (!room) return; if (room.status === "playing" && !room.spectators) return; if (room.mode === "private" && room.password) { currentRoom = room; $("#access-room-copy").textContent = `Phòng “${room.name}” yêu cầu mật khẩu để tham gia.`; $("#access-password").value = ""; $("#access-feedback").textContent = ""; $("#room-access-modal").classList.remove("hidden"); $("#access-password").focus(); } else enterRoom(room, room.status === "playing" ? "spectator" : "player2"); }
     function roomLink(room) { const base = `${location.origin}/room/${room.id}`; return room.mode === "private" && room.password ? `${base}?token=${btoa(`${room.id}:${room.password}`)}` : base; }
@@ -33,6 +34,22 @@
     $("#create-room-form").addEventListener("submit", (event) => { event.preventDefault(); const mode = $("input[name='room-mode']:checked").value, password = $("#room-password").value.trim(); if (mode === "private" && password && !/^[A-Za-z0-9]{4,6}$/.test(password)) { $("#create-room-feedback").textContent = "Mật khẩu phải gồm 4–6 chữ số hoặc ký tự, không dấu cách."; return; } const room = { id: String(Math.floor(100000 + Math.random() * 899999)), name: $("#room-name").value.trim() || `Phòng của ${display()}`, owner: display(), mode, password, status: "waiting", total: $("#room-total-time").value, move: $("#room-move-time").value, side: $("#room-side").value, spectators: $("#room-spectators").checked }; rooms = [room, ...rooms]; save(); $("#create-room-modal").classList.add("hidden"); renderRooms(); currentRoom = room; $("#invite-link-input").value = roomLink(room); $("#invite-feedback").textContent = ""; $("#invite-modal").classList.remove("hidden"); });
     $("#room-access-form").addEventListener("submit", (event) => { event.preventDefault(); if ($("#access-password").value !== currentRoom.password) { $("#access-feedback").textContent = "Mật khẩu chưa chính xác, vui lòng thử lại"; return; } $("#room-access-modal").classList.add("hidden"); enterRoom(currentRoom, currentRoom.status === "playing" ? "spectator" : "player2"); });
     $("#copy-invite").addEventListener("click", async () => { try { await navigator.clipboard.writeText($("#invite-link-input").value); $("#invite-feedback").textContent = "Đã sao chép link phòng."; } catch { $("#invite-link-input").select(); document.execCommand("copy"); $("#invite-feedback").textContent = "Đã sao chép link phòng."; } });
-    $("#logout-button").addEventListener("click", () => { localStorage.removeItem("hongky_session"); location.reload(); });
-    if (localStorage.getItem("hongky_session")) { showLobby(); const match = location.pathname.match(/\/room\/(\d+)/); if (match) { const linkedRoom = rooms.find((room) => room.id === match[1]); if (linkedRoom) { const token = new URLSearchParams(location.search).get("token"); if (linkedRoom.mode === "private" && linkedRoom.password && token !== btoa(`${linkedRoom.id}:${linkedRoom.password}`)) { setTimeout(() => accessRoom(linkedRoom.id), 0); } else if (linkedRoom.status === "playing" && !linkedRoom.spectators) { alert("Phòng đã đủ người chơi"); } else { setTimeout(() => enterRoom(linkedRoom, linkedRoom.status === "playing" ? "spectator" : "player2"), 0); } } } }
+    $("#logout-button").addEventListener("click", async () => {
+        const button = $("#logout-button");
+        button.disabled = true;
+        try { await window.hongKyAuth.post("logout"); window.hongKyAuth.account = null; location.assign("/"); }
+        catch (error) { alert(error.message); button.disabled = false; }
+    });
+    window.hongKyAuth.ready.then((account) => {
+        if (!account) return;
+        showLobby();
+        const match = location.pathname.match(/\/room\/(\d+)/);
+        if (!match) return;
+        const linkedRoom = rooms.find((room) => room.id === match[1]);
+        if (!linkedRoom) return;
+        const token = new URLSearchParams(location.search).get("token");
+        if (linkedRoom.mode === "private" && linkedRoom.password && token !== btoa(`${linkedRoom.id}:${linkedRoom.password}`)) accessRoom(linkedRoom.id);
+        else if (linkedRoom.status === "playing" && !linkedRoom.spectators) alert("Phòng đã đủ người chơi");
+        else enterRoom(linkedRoom, linkedRoom.status === "playing" ? "spectator" : "player2");
+    });
 })();

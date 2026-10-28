@@ -15,7 +15,7 @@ createApp({
             connection: null,
 
             roomId: "room001",
-            userName: JSON.parse(localStorage.getItem("hongky_session") || "null")?.displayName || "Player 1",
+            userName: "Kỳ thủ",
 
             chatMessage: "",
 
@@ -37,8 +37,16 @@ createApp({
 
     async mounted() {
 
+        window.addEventListener("auth:success", (event) => {
+            this.userName = event.detail.displayName;
+            if (!this.connection) this.connectSignalR().catch(console.error);
+        });
         await this.loadBoard();
-        await this.connectSignalR();
+        const account = await window.hongKyAuth.ready;
+        if (account) {
+            this.userName = account.displayName;
+            if (!this.connection) await this.connectSignalR();
+        }
 
     },
 

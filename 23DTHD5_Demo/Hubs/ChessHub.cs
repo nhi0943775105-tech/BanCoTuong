@@ -1,9 +1,11 @@
 ﻿using System.IO.Pipelines;
 using _23DTHD5_Demo.Models;
 using Microsoft.AspNetCore.SignalR;
+using Microsoft.AspNetCore.Authorization;
 
 namespace _23DTHD5_Demo.Hubs
 {
+    [Authorize]
     public class ChessHub: Hub
     {
         // =========================================
@@ -86,6 +88,8 @@ namespace _23DTHD5_Demo.Hubs
                 return;
 
             message = message.Trim();
+            userName = Context.User?.FindFirst("display_name")?.Value
+                ?? Context.User?.Identity?.Name ?? "Kỳ thủ";
 
 
             await Clients
