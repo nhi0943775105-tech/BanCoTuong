@@ -55,7 +55,7 @@ Sai mật khẩu 5 lần khóa tài khoản trong 5 phút. Các API xác thực 
 Đăng nhập Google và Facebook đã có luồng tích hợp; cần cấu hình khóa riêng của từng ứng dụng theo hướng dẫn bên dưới.
 Apple chưa triển khai; nút chỉ thông báo sẽ bổ sung sau.
 Tài khoản demo cũ trong localStorage không được chuyển sang SQL Server; cần đăng ký lại.
-Danh sách phòng vẫn dùng localStorage theo thiết kế hiện tại; phần này chưa chuyển sang database.
+Danh sách phòng và trạng thái người chơi (`Online` / `In-game` / `Offline`) được đồng bộ thời gian thực trên server qua `RoomManagerService` và SignalR (`ChessHub`).
 
 ## Các bảng
 
@@ -226,3 +226,43 @@ Bộ kiểm thử dùng middleware OAuth thật và SQL Server: tạo tài kho�
 state/correlation/PKCE, app secret proof, thiếu email, khóa tài khoản, liên kết bằng mật khẩu,
 liên kết khi đã đăng nhập, chống chiếm liên kết và chống đổi phiên đăng nhập giữa lúc OAuth.
 Tài khoản thử có hậu tố email ngẫu nhiên, được tự dọn sau khi chạy.
+
+
+## Tham gia vào Room (3 hình thức)
+
+Hệ thống quản lý phòng và trạng thái kết nối người chơi theo thời gian thực qua `RoomManagerService`, `RoomController` (`/api/rooms`) và SignalR (`ChessHub`):
+
+### 1. Mời bạn bè trong game (In-game Invitation)
+
+1. Khi tạo phòng xong hoặc đang ở trong phòng cờ, Host bấm **👥 Mời bạn bè**.
+2. Hệ thống tải danh sách người chơi từ `AspNetUsers` kèm trạng thái kết nối thời gian thực:
+   - **Online**: Đang ở sảnh chờ, có thể bấm **Mời**.
+   - **In-game**: Đang ở trong một phòng đấu khác (hiển thị mã phòng hiện tại, khóa nút mời).
+   - **Offline**: Chưa kết nối (khóa nút mời).
+3. Khi Host bấm **Mời**, SignalR gửi sự kiện `ReceiveRoomInvite` trực tiếp tới thiết bị của người bạn với thông báo:
+   `"[Tên Host] mời bạn vào phòng [Room ID]. [Chấp nhận] / [Từ chối]"`.
+4. Khi người bạn bấm **Chấp nhận**, hệ thống dùng `inviteToken` của lời mời để đưa thẳng vào phòng của Host và **tự động bỏ qua bước nhập mật khẩu** kể cả với phòng riêng tư.
+
+### 2. Mời qua Mạng xã hội (Deep Link)
+
+1. Host bấm **↗ Chia sẻ MXH** để mở bảng chia sẻ phòng.
+2. Ứng dụng sinh **Deep Link** chuẩn `cotuong://room/{roomId}` (kèm `?token=...` nếu là phòng riêng tư) và Link Web tương ứng (`/room/{roomId}?deeplink=cotuong://room/{roomId}`), hỗ trợ chia sẻ qua **Zalo**, **Facebook**, **Messenger** hoặc sao chép nhanh.
+3. Khi người nhận mở link trên trình duyệt hoặc dán Deep Link vào ô tìm phòng, trang web tự kích hoạt và đưa thẳng người dùng vào bàn cờ của phòng đó.
+
+### 3. Vào phòng bằng Mã phòng (Room Code — 6 chữ số)
+
+1. Khách tại Sảnh chờ bấm **🔢 Tìm phòng**, nhập đúng **6 chữ số Room ID** rồi bấm **Vào phòng** (hoặc nhập mã 6 số tại ô tìm kiếm sảnh chờ và nhấn Enter).
+2. Nếu là **phòng công khai**: Vào thẳng bàn cờ.
+3. Nếu là **phòng riêng tư**: Hiện popup yêu cầu nhập mật khẩu phòng.
+4. **Xử lý ngoại lệ (Edge Cases)**:
+   - Nhập sai mã phòng (không tồn tại): Báo lỗi **`"Không tìm thấy phòng"`**.
+   - Phòng đã đủ 2 người và không cho phép xem: Báo lỗi **`"Phòng đã đủ người chơi"`**.
+   - Phòng đang trong ván đấu và tắt chế độ xem: Báo lỗi **`"Phòng đang thi đấu, không cho phép khán giả theo dõi"`**.
+   - Nhập sai mật khẩu phòng riêng tư: Báo lỗi **`"Mật khẩu phòng không chính xác"`**.
+
+Các mã phòng mẫu có sẵn khi khởi động để kiểm thử nhanh:
+- `839201`: Phòng công khai đang chờ (1/2 người).
+- `706324`: Phòng riêng tư (mật khẩu: `1234`).
+- `482715`: Phòng đang thi đấu (2/2 người), cho phép khán giả vào xem.
+- `519402`: Phòng đã đủ 2/2 người, tắt chế độ xem (kiểm thử lỗi *"Phòng đã đủ người chơi"*).
+- `628190`: Phòng đang thi đấu, tắt chế độ xem (kiểm thử lỗi *"Phòng đang thi đấu, không cho phép khán giả theo dõi"*).
