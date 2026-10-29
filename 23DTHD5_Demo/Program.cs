@@ -60,6 +60,7 @@ builder.Services.ConfigureApplicationCookie(options =>
 builder.Services.AddAntiforgery(options => options.HeaderName = "X-CSRF-TOKEN");
 builder.Services.AddMemoryCache();
 builder.Services.AddSingleton<PendingAuthStore>();
+builder.Services.AddSingleton<RoomManagerService>();
 builder.Services.Configure<ApiBehaviorOptions>(options =>
     options.InvalidModelStateResponseFactory = context => new BadRequestObjectResult(new
     {

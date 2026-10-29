@@ -39,14 +39,110 @@
 <div id="otp-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="otp-title"><div class="otp-modal"><button class="modal-close" type="button" data-close-modal>×</button><div class="step-icon">✉</div><p class="eyebrow">XÁC THỰC EMAIL</p><h3 id="otp-title">Nhập mã xác thực OTP</h3><p>Xác thực cho <strong id="otp-email"></strong>. Hiện chưa gửi email thật.</p><div class="otp-inputs"><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /><input maxlength="1" inputmode="numeric" /></div><p id="otp-feedback" class="form-feedback" role="alert"></p><div class="otp-footer"><span>Mã hết hạn sau <strong id="otp-countdown">01:59</strong></span><button id="resend-otp" class="text-button" type="button" disabled>Gửi lại mã</button></div><button id="verify-otp" class="primary-button" type="button">Xác nhận mã <span>→</span></button><p class="demo-otp">Demo: mã OTP là <b>123456</b></p></div></div>
 <section id="lobby-shell" class="lobby-shell hidden" aria-label="Sảnh chờ">
     <div class="lobby-topbar"><div class="lobby-brand"><span class="brand-mark">象</span><div><strong>Bá Khí</strong><small>SẢNH CHỜ</small></div></div><div class="lobby-user"><span class="online-dot"></span><span id="lobby-player-name">Kỳ thủ</span><button type="button" class="ghost-button" data-provider="Facebook">Liên kết Facebook</button><button id="logout-button" class="ghost-button">Đăng xuất</button></div></div>
-    <div class="lobby-content"><p id="lobby-auth-feedback" class="form-feedback" role="alert"></p><div class="lobby-heading"><div><p class="eyebrow">NƠI NHỮNG VÁN CỜ BẮT ĐẦU</p><h2>Sảnh chờ</h2><p>Tìm một đối thủ phù hợp hoặc tự tạo phòng của riêng bạn.</p></div><button id="create-room-button" class="primary-button create-button">＋ Tạo phòng mới</button></div>
-        <div class="lobby-toolbar"><div class="room-search"><span>⌕</span><input id="room-search" placeholder="Tìm theo tên phòng hoặc chủ phòng" /></div><div class="room-filters"><button class="filter-button active" data-room-filter="all">Tất cả</button><button class="filter-button" data-room-filter="waiting">Đang chờ</button><button class="filter-button" data-room-filter="private">Riêng tư</button></div></div>
+    <div class="lobby-content"><p id="lobby-auth-feedback" class="form-feedback" role="alert"></p><div class="lobby-heading"><div><p class="eyebrow">NƠI NHỮNG VÁN CỜ BẮT ĐẦU</p><h2>Sảnh chờ</h2><p>Tìm một đối thủ phù hợp, nhập mã phòng 6 số hoặc tự tạo phòng của riêng bạn.</p></div><div class="lobby-heading-actions"><button id="find-room-button" class="ghost-button find-room-button" type="button">🔢 Tìm phòng</button><button id="create-room-button" class="primary-button create-button" type="button">＋ Tạo phòng mới</button></div></div>
+        <div class="lobby-toolbar"><div class="room-search"><span>⌕</span><input id="room-search" placeholder="Tìm theo tên phòng, mã phòng hoặc chủ phòng" /></div><div class="room-filters"><button class="filter-button active" data-room-filter="all">Tất cả</button><button class="filter-button" data-room-filter="waiting">Đang chờ</button><button class="filter-button" data-room-filter="private">Riêng tư</button></div></div>
         <div id="room-list" class="room-list"></div><div id="empty-rooms" class="empty-rooms hidden"><div>♜</div><h3>Chưa có phòng phù hợp</h3><p>Hãy là người đầu tiên tạo một phòng mới.</p></div>
     </div>
 </section>
-<div id="create-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal"><button class="modal-close" type="button" data-close-room-modal>×</button><p class="eyebrow">TẠO KHÔNG GIAN THI ĐẤU</p><h3>Tạo phòng mới</h3><p class="modal-intro">Tùy chỉnh ván cờ theo cách bạn muốn.</p><form id="create-room-form" class="room-form"><label>Tên phòng<input id="room-name" required maxlength="40" /></label><div class="room-section-title">Chế độ phòng</div><div class="mode-options"><label class="mode-option active"><input type="radio" name="room-mode" value="public" checked /><span><b>🔓 Công khai</b><small>Ai cũng có thể thấy và tham gia</small></span></label><label class="mode-option"><input type="radio" name="room-mode" value="private" /><span><b>🔒 Riêng tư</b><small>Chỉ truy cập bằng mật khẩu hoặc link</small></span></label></div><div id="private-options" class="private-options hidden"><label>Mật khẩu phòng <small>(tùy chọn)</small><input id="room-password" pattern="[A-Za-z0-9]{4,6}" maxlength="6" placeholder="4–6 chữ số / ký tự" /><span class="hint">Có thể để trống nếu chỉ dùng link mời.</span></label></div><div class="settings-grid"><label>Thời gian mỗi bên<select id="room-total-time"><option value="10">10 phút</option><option value="15">15 phút</option><option value="20">20 phút</option></select></label><label>Thời gian mỗi nước<select id="room-move-time"><option value="30">30 giây</option><option value="60">60 giây</option><option value="0">Không giới hạn</option></select></label><label>Chọn phe<select id="room-side"><option value="random">Ngẫu nhiên</option><option value="red">Đỏ (đi trước)</option><option value="black">Đen (đi sau)</option></select></label></div><label class="switch-row"><span><b>Cho phép khán giả vào xem</b><small>Người khác có thể xem khi ván đấu bắt đầu</small></span><input id="room-spectators" type="checkbox" checked /><i></i></label><p id="create-room-feedback" class="form-feedback"></p><div class="room-actions"><button type="button" class="ghost-button" data-close-room-modal>Hủy bỏ</button><button type="submit" class="primary-button">Xác nhận tạo phòng <span>→</span></button></div></form></div></div>
-<div id="room-access-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal compact"><button class="modal-close" type="button" data-close-access-modal>×</button><div class="step-icon">🔐</div><p class="eyebrow">PHÒNG RIÊNG TƯ</p><h3>Nhập mật khẩu phòng</h3><p id="access-room-copy" class="modal-intro"></p><form id="room-access-form"><label>Mật khẩu phòng<input id="access-password" type="password" maxlength="6" autocomplete="off" placeholder="Nhập mật khẩu" autofocus /></label><p id="access-feedback" class="form-feedback"></p><button class="primary-button" type="submit">Xác nhận & vào phòng <span>→</span></button></form></div></div>
-<div id="invite-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal compact"><button class="modal-close" type="button" data-close-invite-modal>×</button><div class="step-icon">↗</div><p class="eyebrow">CHIA SẺ PHÒNG</p><h3>Link mời đã sẵn sàng</h3><p class="modal-intro">Gửi link này cho đối thủ của bạn. Link riêng tư đã bao gồm quyền truy cập an toàn.</p><div class="invite-link"><input id="invite-link-input" readonly /><button id="copy-invite" type="button">Sao chép</button></div><p id="invite-feedback" class="form-feedback success"></p></div></div>
+
+<!-- Modal Tạo phòng mới -->
+<div id="create-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal"><button class="modal-close" type="button" data-close-room-modal>×</button><p class="eyebrow">TẠO KHÔNG GIAN THI ĐẤU</p><h3>Tạo phòng mới</h3><p class="modal-intro">Tùy chỉnh ván cờ theo cách bạn muốn.</p><form id="create-room-form" class="room-form"><label>Tên phòng<input id="room-name" required maxlength="40" /></label><div class="room-section-title">Chế độ phòng</div><div class="mode-options"><label class="mode-option active"><input type="radio" name="room-mode" value="public" checked /><span><b>🔓 Công khai</b><small>Ai cũng có thể thấy và tham gia</small></span></label><label class="mode-option"><input type="radio" name="room-mode" value="private" /><span><b>🔒 Riêng tư</b><small>Chỉ truy cập bằng mật khẩu hoặc link</small></span></label></div><div id="private-options" class="private-options hidden"><label>Mật khẩu phòng <small>(4–6 ký tự)</small><input id="room-password" pattern="[A-Za-z0-9]{4,6}" maxlength="6" placeholder="Nhập 4–6 chữ số / ký tự (VD: 1234)" /><span class="hint">Khách tìm bằng Mã phòng sẽ phải nhập mật khẩu này.</span></label></div><div class="settings-grid"><label>Thời gian mỗi bên<select id="room-total-time"><option value="10">10 phút</option><option value="15">15 phút</option><option value="20">20 phút</option></select></label><label>Thời gian mỗi nước<select id="room-move-time"><option value="30">30 giây</option><option value="60">60 giây</option><option value="0">Không giới hạn</option></select></label><label>Chọn phe<select id="room-side"><option value="random">Ngẫu nhiên</option><option value="red">Đỏ (đi trước)</option><option value="black">Đen (đi sau)</option></select></label></div><label class="switch-row"><span><b>Cho phép khán giả vào xem</b><small>Người khác có thể xem khi ván đấu bắt đầu</small></span><input id="room-spectators" type="checkbox" checked /><i></i></label><p id="create-room-feedback" class="form-feedback"></p><div class="room-actions"><button type="button" class="ghost-button" data-close-room-modal>Hủy bỏ</button><button type="submit" class="primary-button">Xác nhận tạo phòng <span>→</span></button></div></form></div></div>
+
+<!-- Hình thức 3: Modal Tìm phòng bằng Mã phòng 6 chữ số (Room Code) hoặc Deep Link -->
+<div id="find-room-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="find-room-title">
+    <div class="room-modal compact">
+        <button class="modal-close" type="button" data-close-find-modal>×</button>
+        <div class="step-icon">🔢</div>
+        <p class="eyebrow">VÀO PHÒNG BẰNG MÃ</p>
+        <h3 id="find-room-title">Tìm phòng</h3>
+        <p class="modal-intro">Nhập đúng 6 chữ số Room ID (hoặc dán Deep Link <code>cotuong://room/...</code>) để vào bàn cờ.</p>
+        <form id="find-room-form" class="room-form" novalidate>
+            <label>
+                Mã phòng (6 chữ số) hoặc Deep Link
+                <input id="find-room-code" type="text" maxlength="120" autocomplete="off" placeholder="VD: 839201 hoặc cotuong://room/839201" />
+            </label>
+            <div class="quick-code-hints">
+                <small>Mã thử nhanh:</small>
+                <button type="button" class="code-chip" data-sample-code="839201" title="Phòng công khai">839201 (Công khai)</button>
+                <button type="button" class="code-chip" data-sample-code="706324" title="Phòng riêng tư (MK: 1234)">706324 (Riêng tư)</button>
+                <button type="button" class="code-chip" data-sample-code="519402" title="Phòng đã đủ 2 người, tắt xem">519402 (Đủ người)</button>
+                <button type="button" class="code-chip" data-sample-code="628190" title="Đang thi đấu, tắt khán giả">628190 (Đang đấu kín)</button>
+            </div>
+            <p id="find-room-feedback" class="form-feedback" role="alert"></p>
+            <button class="primary-button" type="submit">Vào phòng <span>→</span></button>
+        </form>
+    </div>
+</div>
+
+<!-- Modal Nhập mật khẩu phòng riêng tư -->
+<div id="room-access-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true"><div class="room-modal compact"><button class="modal-close" type="button" data-close-access-modal>×</button><div class="step-icon">🔐</div><p class="eyebrow">PHÒNG RIÊNG TƯ</p><h3>Nhập mật khẩu phòng</h3><p id="access-room-copy" class="modal-intro"></p><form id="room-access-form"><label>Mật khẩu phòng<input id="access-password" type="password" maxlength="6" autocomplete="off" placeholder="Nhập mật khẩu" autofocus /></label><p id="access-feedback" class="form-feedback" role="alert"></p><button class="primary-button" type="submit">Xác nhận & vào phòng <span>→</span></button></form></div></div>
+
+<!-- Hình thức 2: Modal Chia sẻ MXH (Deep Link) -->
+<div id="invite-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true">
+    <div class="room-modal compact">
+        <button class="modal-close" type="button" data-close-invite-modal>×</button>
+        <div class="step-icon">↗</div>
+        <p class="eyebrow">CHIA SẺ MXH & DEEP LINK</p>
+        <h3>Mời đối thủ vào phòng</h3>
+        <div class="share-room-code-banner">
+            <span>Mã phòng (6 chữ số):</span>
+            <strong id="share-room-code-display">------</strong>
+        </div>
+        <div class="share-field-group">
+            <label class="share-label">Link Deep Link (Dán lên thanh địa chỉ trình duyệt hoặc gửi MXH)</label>
+            <div class="invite-link">
+                <input id="invite-link-input" readonly />
+                <button id="copy-invite" type="button">Sao chép</button>
+            </div>
+        </div>
+        <div class="share-field-group">
+            <label class="share-label">Mã Deep Link App (Dán vào ô Tìm phòng trong game)</label>
+            <div class="invite-link">
+                <input id="deeplink-input" readonly />
+                <button id="copy-deeplink" type="button">Sao chép</button>
+            </div>
+        </div>
+        <div class="social-share-section">
+            <span class="share-label">Chia sẻ nhanh qua Mạng xã hội</span>
+            <div class="social-share-buttons">
+                <button type="button" class="social-share-btn zalo" data-share-channel="zalo">Zalo</button>
+                <button type="button" class="social-share-btn facebook" data-share-channel="facebook">Facebook</button>
+                <button type="button" class="social-share-btn messenger" data-share-channel="messenger">Messenger</button>
+            </div>
+        </div>
+        <p id="invite-feedback" class="form-feedback success"></p>
+        <div class="invite-modal-footer">
+            <button type="button" id="invite-open-friends" class="ghost-button">👥 Mời bạn bè trong game</button>
+            <button type="button" id="invite-enter-room" class="primary-button">Vào bàn cờ <span>→</span></button>
+        </div>
+    </div>
+</div>
+
+<!-- Hình thức 1: Modal Danh sách Bạn bè (In-game Invitation) -->
+<div id="friends-modal" class="modal-backdrop hidden" role="dialog" aria-modal="true" aria-labelledby="friends-modal-title">
+    <div class="room-modal compact">
+        <button class="modal-close" type="button" data-close-friends-modal>×</button>
+        <div class="step-icon">👥</div>
+        <p class="eyebrow">MỜI BẠN BÈ TRONG GAME</p>
+        <h3 id="friends-modal-title">Danh sách bạn bè</h3>
+        <p class="modal-intro">Mời bạn bè đang Online vào phòng <strong id="friends-room-badge">#------</strong>. Bạn bè chấp nhận sẽ vào thẳng phòng mà không cần mật khẩu.</p>
+        <div id="friends-list" class="friends-list"></div>
+        <p id="friends-feedback" class="form-feedback" role="alert"></p>
+    </div>
+</div>
+
+<!-- Popup Real-time khi nhận lời mời từ Host -->
+<div id="incoming-invite-modal" class="invite-toast-backdrop hidden" role="alertdialog" aria-modal="true" aria-labelledby="incoming-invite-text">
+    <div class="invite-toast-card">
+        <div class="invite-toast-badge">♟ LỜI MỜI VÀO PHÒNG</div>
+        <p id="incoming-invite-text" class="invite-toast-message"></p>
+        <div class="invite-toast-actions">
+            <button id="accept-invite-button" type="button" class="primary-button invite-accept-btn">Chấp nhận</button>
+            <button id="decline-invite-button" type="button" class="ghost-button invite-decline-btn">Từ chối</button>
+        </div>
+    </div>
+</div>
+
 <style>
     .game-layout {
         display: flex;
@@ -205,7 +301,28 @@
         cursor: pointer;
     }
 </style>
-<div id="app">
+<!-- Thanh điều khiển Phòng đấu đặt ngoài #app để Vue không ghi đè sự kiện click -->
+<div id="room-stage-bar" class="hidden">
+    <div class="room-stage-topbar">
+        <div class="room-stage-info">
+            <button type="button" id="leave-room-button" class="ghost-button room-back-btn">← Sảnh chờ</button>
+            <div>
+                <div class="room-stage-title">
+                    <strong id="active-room-name">Phòng thi đấu</strong>
+                    <span id="active-room-code" class="room-code-pill">#839201</span>
+                    <span id="active-room-role" class="room-role-pill">Kỳ thủ</span>
+                </div>
+                <small id="active-room-deeplink" class="room-deeplink-sub">Deep Link: cotuong://room/839201</small>
+            </div>
+        </div>
+        <div class="room-stage-actions">
+            <button type="button" id="room-invite-friends-btn" class="ghost-button">👥 Mời bạn bè</button>
+            <button type="button" id="room-share-social-btn" class="primary-button room-share-btn">↗ Chia sẻ MXH</button>
+        </div>
+    </div>
+    <p id="room-stage-feedback" class="room-stage-feedback hidden" role="status"></p>
+</div>
+<div id="app" class="hidden">
 
     <div class="game-layout">
 
@@ -256,7 +373,7 @@
                 Phòng chat
 
                 <small>
-                    {{ roomId }}
+                    Mã phòng: {{ roomId }}
                 </small>
 
             </div>
@@ -352,8 +469,8 @@
     </div>
 
 </div>
-<script src="/js/auth.js"></script>
-<script src="/js/lobby.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/microsoft-signalr/8.0.7/signalr.min.js"></script>
+<script src="/js/auth.js" asp-append-version="true"></script>
+<script src="/js/lobby.js" asp-append-version="true"></script>
 <script src="https://unpkg.com/vue@3/dist/vue.global.js"></script>
-<script src="/js/cotuong.js"></script>
+<script src="/js/cotuong.js" asp-append-version="true"></script>

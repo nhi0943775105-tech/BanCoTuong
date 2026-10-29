@@ -1,4 +1,4 @@
-﻿const { createApp } = Vue;
+const { createApp } = Vue;
 
 createApp({
 
@@ -13,8 +13,10 @@ createApp({
             selectedPiece: null,
 
             connection: null,
+            connectingPromise: null,
+            inActiveRoom: false,
 
-            roomId: "room001",
+            roomId: "839201",
             userName: "Kỳ thủ",
 
             chatMessage: "",
@@ -39,19 +41,105 @@ createApp({
 
         window.addEventListener("auth:success", (event) => {
             this.userName = event.detail.displayName;
-            if (!this.connection) this.connectSignalR().catch(console.error);
+            this.ensureConnected().catch(console.error);
         });
+
+        window.addEventListener("room:enter-lobby", async () => {
+            this.inActiveRoom = false;
+            if (this.connection && this.connection.state === "Connected") {
+                try {
+                    await this.connection.invoke("EnterLobby");
+                } catch (err) {
+                    console.warn("EnterLobby invoke error:", err);
+                }
+            }
+        });
+
+        window.addEventListener("room:entered", async (event) => {
+            const { room } = event.detail || {};
+            if (!room || !room.id) return;
+            this.inActiveRoom = true;
+            await this.switchRoom(room.id);
+        });
+
+        window.addEventListener("room:left", async (event) => {
+            this.inActiveRoom = false;
+            const previousId = event.detail?.roomId || this.roomId;
+            if (this.connection && this.connection.state === "Connected" && previousId) {
+                try {
+                    await this.connection.invoke("LeaveRoom", previousId);
+                } catch (err) {
+                    console.warn("LeaveRoom invoke error:", err);
+                }
+            }
+        });
+
+        window.addEventListener("room:send-invite", async (event) => {
+            const { targetUserId, roomId } = event.detail || {};
+            if (!targetUserId || !roomId) return;
+            await this.ensureConnected();
+            await this.connection.invoke("SendRoomInvite", targetUserId, roomId);
+        });
+
+        window.addEventListener("room:respond-invite", async (event) => {
+            const { hostId, roomId, accepted } = event.detail || {};
+            if (!hostId || !roomId) return;
+            await this.ensureConnected();
+            await this.connection.invoke("RespondRoomInvite", hostId, roomId, !!accepted);
+        });
+
+        // Kiểm tra nếu người dùng đã vào phòng trước khi Vue mount xong
+        const appEl = document.getElementById("app");
+        const savedRoom = JSON.parse(localStorage.getItem("hongky_current_room") || "null");
+        if (appEl && !appEl.classList.contains("hidden") && savedRoom?.id) {
+            this.inActiveRoom = true;
+            this.roomId = savedRoom.id;
+        }
+
         await this.loadBoard();
         const account = await window.hongKyAuth.ready;
         if (account) {
             this.userName = account.displayName;
-            if (!this.connection) await this.connectSignalR();
+            await this.ensureConnected();
         }
 
     },
 
 
     methods: {
+        async ensureConnected() {
+            if (this.connection && this.connection.state === "Connected") {
+                return;
+            }
+            if (this.connectingPromise) {
+                await this.connectingPromise;
+                return;
+            }
+            this.connectingPromise = this.connectSignalR().finally(() => {
+                this.connectingPromise = null;
+            });
+            await this.connectingPromise;
+        },
+        async switchRoom(newRoomId) {
+            const previousRoomId = this.roomId;
+            this.roomId = newRoomId;
+            this.inActiveRoom = true;
+            await this.ensureConnected();
+
+            if (this.connection && this.connection.state === "Connected") {
+                if (previousRoomId && previousRoomId !== newRoomId) {
+                    try {
+                        await this.connection.invoke("LeaveRoom", previousRoomId);
+                    } catch (err) {
+                        console.warn("Leave previous room error:", err);
+                    }
+                }
+                await this.connection.invoke("JoinRoom", this.roomId);
+            }
+            this.messages = [];
+            this.selectedPiece = null;
+            await this.loadBoard();
+        },
         async startCall() {
 
             try {
@@ -240,6 +328,49 @@ createApp({
                     .withUrl("/chessHub")
                     .withAutomaticReconnect()
                     .build();
+
+            // =========================
+            // Nhận lời mời vào phòng từ bạn bè (In-game Invitation)
+            // =========================
+            this.connection.on(
+                "ReceiveRoomInvite",
+                (invitePayload) => {
+                    window.dispatchEvent(
+                        new CustomEvent("room:incoming-invite", {
+                            detail: invitePayload
+                        })
+                    );
+                }
+            );
+
+            this.connection.on(
+                "InviteResponse",
+                (responsePayload) => {
+                    window.dispatchEvent(
+                        new CustomEvent("room:invite-response", {
+                            detail: responsePayload
+                        })
+                    );
+                }
+            );
+
+            this.connection.on(
+                "RoomsUpdated",
+                (roomsPayload) => {
+                    window.dispatchEvent(
+                        new CustomEvent("room:list-updated", {
+                            detail: roomsPayload
+                        })
+                    );
+                }
+            );
+
+            this.connection.on(
+                "PresenceUpdated",
+                () => {
+                    window.dispatchEvent(new CustomEvent("room:presence-updated"));
+                }
+            );
 
             this.connection.on(
                 "ReceiveOffer",
@@ -455,19 +586,20 @@ createApp({
             console.log("SignalR connected");
 
 
-            // =========================
-            // Join room
-            // =========================
+            // Nếu đang ở trong phòng thì JoinRoom, nếu ở Sảnh chờ thì báo EnterLobby (Online)
+            if (this.inActiveRoom && this.roomId) {
+                await this.connection.invoke(
+                    "JoinRoom",
+                    this.roomId
+                );
 
-            await this.connection.invoke(
-                "JoinRoom",
-                this.roomId
-            );
-
-            console.log(
-                "Joined:",
-                this.roomId
-            );
+                console.log(
+                    "Joined:",
+                    this.roomId
+                );
+            } else {
+                await this.connection.invoke("EnterLobby");
+            }
         },
         async flushIceCandidates() {
 
