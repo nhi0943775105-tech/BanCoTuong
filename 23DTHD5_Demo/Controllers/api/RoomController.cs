@@ -146,6 +146,16 @@ public class RoomController(
             });
         }
 
+        var joinedRoom = roomManager.GetRoom(request.RoomId);
+        if (joinedRoom is not null && roomManager.EnsureGame(joinedRoom))
+        {
+            var state = roomManager.GetGameState(joinedRoom);
+            if (state is not null)
+            {
+                await hubContext.Clients.Group(joinedRoom.Id).SendAsync("GameState", state);
+            }
+        }
+
         await hubContext.Clients.All.SendAsync("RoomsUpdated", roomManager.GetAllRooms(BaseUrl));
         await hubContext.Clients.All.SendAsync("PresenceUpdated");
 
@@ -161,6 +171,12 @@ public class RoomController(
     public async Task<IActionResult> LeaveRoom(string id)
     {
         roomManager.LeaveRoom(CurrentUserId, id);
+        var leftRoom = roomManager.GetRoom(id);
+        var leftState = leftRoom is null ? null : roomManager.GetGameState(leftRoom);
+        if (leftState is not null)
+        {
+            await hubContext.Clients.Group(id).SendAsync("GameState", leftState);
+        }
         await hubContext.Clients.All.SendAsync("RoomsUpdated", roomManager.GetAllRooms(BaseUrl));
         await hubContext.Clients.All.SendAsync("PresenceUpdated");
         return Ok(new { message = "Đã rời phòng." });

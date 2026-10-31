@@ -158,6 +158,61 @@
        BÀN CỜ
        ========================== */
 
+    .game-status {
+        display: flex;
+        flex-wrap: wrap;
+        align-items: center;
+        gap: 8px 14px;
+        margin: 6px 0 12px;
+        padding: 8px 12px;
+        background: #173c3a;
+        color: #f8f3e8;
+        border-radius: 3px;
+        font-size: 14px;
+    }
+
+    .game-status-check {
+        background: #bf4f45;
+    }
+
+    .game-role {
+        color: #eac675;
+        font-size: 12px;
+    }
+
+    .game-notice {
+        flex-basis: 100%;
+        color: #ffd9d4;
+        font-size: 12px;
+    }
+
+    .game-rematch {
+        margin-left: auto;
+        border: 0;
+        border-radius: 2px;
+        padding: 4px 12px;
+        background: #eac675;
+        color: #173c3a;
+        font-weight: 700;
+        cursor: pointer;
+    }
+
+    .legal-dot {
+        position: absolute;
+        width: 3.4%;
+        aspect-ratio: 1;
+        transform: translate(-50%, -50%);
+        border-radius: 50%;
+        background: rgba(23, 60, 58, .55);
+        box-shadow: 0 0 0 3px rgba(234, 198, 117, .6);
+        cursor: pointer;
+        z-index: 20;
+    }
+
+    .piece.in-check {
+        filter: drop-shadow(0 0 8px #bf4f45);
+    }
+
     .board-section {
         flex: 0 1 700px;
     }
@@ -335,6 +390,18 @@
 
             <h2>Game Cờ Tướng</h2>
 
+            <div class="game-status" :class="{ 'game-status-check': gameState && gameState.inCheck && !gameState.finished }">
+                <strong>{{ statusText }}</strong>
+                <span v-if="roleText" class="game-role">{{ roleText }}</span>
+                <span v-if="notice" class="game-notice">{{ notice }}</span>
+                <button v-if="gameState && gameState.finished && myColor"
+                        type="button"
+                        class="game-rematch"
+                        @@click="rematch">
+                    Ván mới
+                </button>
+            </div>
+
             <div class="chess-board"
                  ref="board"
                  @@click="moveTo">
@@ -344,11 +411,18 @@
                      draggable="false" />
 
 
+                <span v-for="target in legalTargets"
+                      :key="'t' + target[0] + '-' + target[1]"
+                      class="legal-dot"
+                      :style="getCellStyle(target)"
+                      @@click.stop="movePiece(selectedPiece, target[0], target[1])"></span>
+
                 <img v-for="piece in pieces"
                      :key="piece.id"
                      :src="'/images/' + piece.file"
                      class="piece"
                      :class="{
+                        'in-check': isCheckedGeneral(piece),
                         selected:
                             selectedPiece?.id === piece.id
                      }"

@@ -12,6 +12,12 @@ createApp({
 
             selectedPiece: null,
 
+            // Trạng thái ván cờ do server quản lý
+            gameState: null,
+            myUserId: null,
+            legalTargets: [],
+            notice: "",
+
             connection: null,
             connectingPromise: null,
             inActiveRoom: false,
@@ -37,10 +43,56 @@ createApp({
     },
 
 
+    computed: {
+        myColor() {
+            const gs = this.gameState;
+            if (!gs) return null;
+            const uid = this.myUserId || window.hongKyAuth?.account?.id;
+            if (!uid) return null;
+            if (gs.redId === uid) return "do";
+            if (gs.blackId === uid) return "den";
+            return null;
+        },
+        isMyTurn() {
+            return !!this.gameState && !this.gameState.finished && this.myColor === this.gameState.turn;
+        },
+        roleText() {
+            if (!this.gameState) return "";
+            if (this.myColor === "do") return "Bạn cầm quân Đỏ";
+            if (this.myColor === "den") return "Bạn cầm quân Đen";
+            return "Bạn đang xem trận";
+        },
+        statusText() {
+            const gs = this.gameState;
+            if (!gs) return "Đang chờ đối thủ vào phòng...";
+            const colorName = (c) => c === "do" ? "Đỏ" : "Đen";
+            const playerName = (c) => c === "do" ? gs.redName : gs.blackName;
+            if (gs.finished) {
+                const reasons = {
+                    checkmate: "chiếu hết",
+                    stalemate: "đối phương hết nước đi",
+                    opponent_left: "đối thủ đã rời phòng"
+                };
+                const reason = reasons[gs.reason] || "kết thúc ván";
+                return gs.winner
+                    ? `${colorName(gs.winner)} (${playerName(gs.winner)}) thắng - ${reason}.`
+                    : `Ván cờ kết thúc - ${reason}.`;
+            }
+            const check = gs.inCheck ? " - CHIẾU TƯỚNG!" : "";
+            if (this.myColor) {
+                const turnHint = this.isMyTurn ? " (Đến lượt bạn)" : " (Đang chờ đối thủ)";
+                return `Lượt: ${colorName(gs.turn)} - ${playerName(gs.turn)}${turnHint}${check}`;
+            }
+            return `Lượt: ${colorName(gs.turn)} (${playerName(gs.turn)})${check}`;
+        }
+    },
+
+
     async mounted() {
 
         window.addEventListener("auth:success", (event) => {
             this.userName = event.detail.displayName;
+            this.myUserId = event.detail.id || this.myUserId;
             this.ensureConnected().catch(console.error);
         });
 
@@ -100,6 +152,7 @@ createApp({
         const account = await window.hongKyAuth.ready;
         if (account) {
             this.userName = account.displayName;
+            this.myUserId = account.id || this.myUserId;
             await this.ensureConnected();
         }
 
@@ -124,6 +177,15 @@ createApp({
             const previousRoomId = this.roomId;
             this.roomId = newRoomId;
             this.inActiveRoom = true;
+            this.messages = [];
+            this.selectedPiece = null;
+            this.legalTargets = [];
+            this.gameState = null;
+            this.notice = "";
+            if (window.hongKyAuth?.account?.id) {
+                this.myUserId = window.hongKyAuth.account.id;
+            }
+            await this.loadBoard();
             await this.ensureConnected();
 
             if (this.connection && this.connection.state === "Connected") {
@@ -135,10 +197,8 @@ createApp({
                     }
                 }
                 await this.connection.invoke("JoinRoom", this.roomId);
+                await this.syncGameState();
             }
-            this.messages = [];
-            this.selectedPiece = null;
-            await this.loadBoard();
         },
         async startCall() {
 
@@ -571,20 +631,51 @@ createApp({
                         move
                     );
 
-                    this.applyMove(move);
+                    // Trạng thái bàn cờ do server quản lý, nhận qua sự kiện GameState.
 
                 }
             );
 
 
             // =========================
-            // Connect
+            // Trạng thái ván cờ từ server
             // =========================
+            this.connection.on("GameState", (state) => {
+                this.applyGameState(state);
+            });
+
+            this.connection.on("MoveRejected", (message) => {
+                this.notice = message || "Nước đi không hợp lệ.";
+                this.selectedPiece = null;
+                this.legalTargets = [];
+            });
+
+            this.connection.onreconnected(async () => {
+                try {
+                    this.myUserId = await this.connection.invoke("GetMyUserId");
+                    if (this.inActiveRoom && this.roomId) {
+                        await this.connection.invoke("JoinRoom", this.roomId);
+                        await this.syncGameState();
+                    } else {
+                        await this.connection.invoke("EnterLobby");
+                    }
+                } catch (err) {
+                    console.warn("Reconnect error:", err);
+                }
+            });
+
+            // =========================
+            // Connect            // =========================
 
             await this.connection.start();
 
             console.log("SignalR connected");
 
+            try {
+                this.myUserId = await this.connection.invoke("GetMyUserId");
+            } catch (err) {
+                console.warn("GetMyUserId error:", err);
+            }
 
             // Nếu đang ở trong phòng thì JoinRoom, nếu ở Sảnh chờ thì báo EnterLobby (Online)
             if (this.inActiveRoom && this.roomId) {
@@ -642,49 +733,28 @@ createApp({
         // ==========================
         // LOAD DATA
         // ==========================
-        applyMove(move) {
-
-            const piece =
-                this.pieces.find(
-                    p => p.id === move.pieceId
-                );
-
-            if (!piece) {
-                console.error(
-                    "Không tìm thấy quân:",
-                    move.pieceId
-                );
-
-                return;
-            }
-
-
-            // Kiểm tra quân tại vị trí đích
-            const capturedPiece =
-                this.pieces.find(
-                    p =>
-                        p.row === move.toRow &&
-                        p.col === move.toCol &&
-                        p.id !== move.pieceId
-                );
-
-
-            // Nếu có -> loại khỏi bàn
-            if (capturedPiece) {
-
-                this.pieces =
-                    this.pieces.filter(
-                        p => p.id !== capturedPiece.id
-                    );
-
-            }
-
-
-            // Di chuyển
-            piece.row = move.toRow;
-            piece.col = move.toCol;
+        applyGameState(state) {
+            if (!state) return;
+            if (state.roomId && this.roomId && state.roomId !== this.roomId) return;
+            this.gameState = state;
+            this.pieces = state.pieces || [];
+            this.selectedPiece = null;
+            this.legalTargets = [];
+            if (!state.finished) this.notice = "";
         },
-        async loadBoard() {
+        async syncGameState() {
+            if (!this.connection || this.connection.state !== "Connected" || !this.roomId) return;
+            try {
+                const state = await this.connection.invoke("GetGameState", this.roomId);
+                if (state) this.applyGameState(state);
+            } catch (err) {
+                console.warn("GetGameState error:", err);
+            }
+        },
+        async rematch() {
+            if (!this.connection) return;
+            await this.connection.invoke("Rematch", this.roomId);
+        },        async loadBoard() {
 
             try {
 
@@ -757,18 +827,60 @@ createApp({
         // CHỌN QUÂN
         // ==========================
 
-        selectPiece(piece) {
+        async selectPiece(piece) {
+            if (!this.myUserId && window.hongKyAuth?.account?.id) {
+                this.myUserId = window.hongKyAuth.account.id;
+            }
 
-            this.selectedPiece =
-                piece;
+            const gs = this.gameState;
+            if (!gs) {
+                this.notice = "Ván cờ chưa bắt đầu. Cần đủ 2 người chơi vào phòng.";
+                return;
+            }
+            if (gs.finished) return;
+            if (!this.myColor) {
+                this.notice = "Bạn đang theo dõi ván đấu với tư cách khán giả.";
+                return;
+            }
 
-            console.log(
-                "Selected:",
-                piece
-            );
+            // Đã chọn quân mình và bấm vào quân đối phương -> ăn quân
+            if (this.selectedPiece && piece.color !== this.myColor) {
+                await this.movePiece(this.selectedPiece, piece.row, piece.col);
+                return;
+            }
+            if (piece.color !== this.myColor) {
+                this.notice = "Đây là quân của đối phương, không phải quân của bạn.";
+                return;
+            }
+            if (gs.turn !== this.myColor) {
+                this.notice = "Chưa đến lượt của bạn. Vui lòng chờ đối thủ đi cờ.";
+                return;
+            }
+            if (this.selectedPiece && this.selectedPiece.id === piece.id) {
+                this.selectedPiece = null;
+                this.legalTargets = [];
+                return;
+            }
 
+            this.notice = "";
+            this.selectedPiece = piece;
+            this.legalTargets = [];
+            try {
+                this.legalTargets = await this.connection.invoke("GetLegalMoves", this.roomId, piece.id);
+            } catch (err) {
+                console.warn("GetLegalMoves error:", err);
+            }
         },
 
+        getCellStyle(target) {
+            return this.getPieceStyle({ row: target[0], col: target[1] });
+        },
+
+        isCheckedGeneral(piece) {
+            const gs = this.gameState;
+            return !!gs && gs.inCheck && !gs.finished
+                && piece.type === "chu_tuong" && piece.color === gs.turn;
+        },
 
         // ==========================
         // CLICK BÀN CỜ
@@ -897,29 +1009,35 @@ createApp({
         // ==========================
 
         async movePiece(piece, row, col) {
+            if (!this.connection || !piece) return;
+
+            if (this.legalTargets.length > 0 &&
+                !this.legalTargets.some(t => t[0] === row && t[1] === col)) {
+                this.notice = "Nước đi không đúng luật.";
+                return;
+            }
 
             const fromRow = piece.row;
             const fromCol = piece.col;
 
-
-            await this.connection.invoke(
-                "MovePiece",
-
-                this.roomId,
-
-                piece.id,
-
-                fromRow,
-                fromCol,
-
-                row,
-                col
-            );
-
+            try {
+                await this.connection.invoke(
+                    "MovePiece",
+                    this.roomId,
+                    piece.id,
+                    fromRow,
+                    fromCol,
+                    row,
+                    col
+                );
+            } catch (err) {
+                console.error("MovePiece error:", err);
+                this.notice = "Không gửi được nước đi, vui lòng thử lại.";
+            }
 
             this.selectedPiece = null;
+            this.legalTargets = [];
         }
-
     }
 
 }).mount("#app");

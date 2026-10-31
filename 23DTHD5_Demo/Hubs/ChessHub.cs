@@ -59,6 +59,12 @@ namespace _23DTHD5_Demo.Hubs
             if (!string.IsNullOrEmpty(CurrentUserId))
             {
                 roomManager.SetUserRoom(CurrentUserId, CurrentDisplayName, roomId);
+                var joinedRoom = roomManager.GetRoom(roomId);
+                if (joinedRoom is not null && roomManager.EnsureGame(joinedRoom))
+                {
+                    await Clients.All.SendAsync("RoomsUpdated", roomManager.GetAllRooms(BaseUrl()));
+                }
+                await BroadcastGameState(roomId);
                 await Clients.All.SendAsync("PresenceUpdated");
             }
 
@@ -80,6 +86,7 @@ namespace _23DTHD5_Demo.Hubs
             if (!string.IsNullOrEmpty(CurrentUserId))
             {
                 roomManager.LeaveRoom(CurrentUserId, roomId);
+                await BroadcastGameState(roomId);
                 await Clients.All.SendAsync("PresenceUpdated");
             }
 
@@ -134,6 +141,8 @@ namespace _23DTHD5_Demo.Hubs
                     return;
                 }
 
+                roomManager.EnsureGame(room);
+                await BroadcastGameState(room.Id);
                 await Clients.All.SendAsync("RoomsUpdated", roomManager.GetAllRooms(baseUrl));
                 await Clients.All.SendAsync("PresenceUpdated");
 
@@ -208,6 +217,25 @@ namespace _23DTHD5_Demo.Hubs
         // =========================================
         // Nhận nước đi
         // =========================================
+        public string GetMyUserId() => CurrentUserId;
+
+        // Trạng thái ván cờ hiện tại của phòng (dùng khi vào phòng / tải lại trang)
+        public GameStateDto? GetGameState(string roomId)
+        {
+            var room = roomManager.GetRoom(roomId);
+            return room is null ? null : roomManager.GetGameState(room);
+        }
+
+        // Các ô đi hợp lệ của một quân (chỉ trả về cho đúng người đang đến lượt)
+        public List<int[]> GetLegalMoves(string roomId, string pieceId)
+        {
+            var room = roomManager.GetRoom(roomId);
+            return room is null ? [] : roomManager.GetLegalMoves(room, CurrentUserId, pieceId);
+        }
+
+        // =========================================
+        // Nhận nước đi: server kiểm tra luật, lượt đi, chủ quân rồi mới phát cho cả phòng
+        // =========================================
         public async Task MovePiece(
             string roomId,
             string pieceId,
@@ -216,33 +244,55 @@ namespace _23DTHD5_Demo.Hubs
             int toRow,
             int toCol)
         {
-            var move = new ChessMoveModel
+            var room = roomManager.GetRoom(roomId);
+            if (room is null)
             {
-                PieceId = pieceId,
+                await Clients.Caller.SendAsync("MoveRejected", "Không tìm thấy phòng.");
+                return;
+            }
 
-                FromRow = fromRow,
-                FromCol = fromCol,
+            var (ok, error, state) = roomManager.TryMove(room, CurrentUserId, pieceId, toRow, toCol);
+            if (!ok)
+            {
+                await Clients.Caller.SendAsync("MoveRejected", error ?? "Nước đi không hợp lệ.");
+                if (state is not null)
+                    await Clients.Caller.SendAsync("GameState", state);
+                return;
+            }
 
-                ToRow = toRow,
-                ToCol = toCol
-            };
+            await Clients.Group(roomId).SendAsync("GameState", state);
 
-            Console.WriteLine(
-                $"Room: {roomId} | " +
-                $"{pieceId}: " +
-                $"({fromRow},{fromCol}) -> " +
-                $"({toRow},{toCol})"
-            );
-
-            // Gửi nước đi cho tất cả người trong room
-            await Clients
-                .Group(roomId)
-                .SendAsync(
-                    "ReceiveMove",
-                    move
-                );
+            if (state is { Finished: true })
+            {
+                await Clients.All.SendAsync("RoomsUpdated", roomManager.GetAllRooms(BaseUrl()));
+            }
         }
 
+        // Bắt đầu ván mới (đổi phe) sau khi ván trước kết thúc
+        public async Task Rematch(string roomId)
+        {
+            var room = roomManager.GetRoom(roomId);
+            if (room is null) return;
+            var (ok, error) = roomManager.Rematch(room, CurrentUserId);
+            if (!ok)
+            {
+                await Clients.Caller.SendAsync("MoveRejected", error ?? "Không thể bắt đầu ván mới.");
+                return;
+            }
+            await Clients.Group(roomId).SendAsync("GameState", roomManager.GetGameState(room));
+            await Clients.Group(roomId).SendAsync("ReceiveMessage", "Hệ thống", "Ván mới đã bắt đầu, hai bên đổi phe.");
+        }
+
+        private string BaseUrl() =>
+            $"{Context.GetHttpContext()?.Request.Scheme ?? "http"}://{Context.GetHttpContext()?.Request.Host.Value ?? "localhost:5275"}";
+
+        private async Task BroadcastGameState(string roomId)
+        {
+            var room = roomManager.GetRoom(roomId);
+            var state = room is null ? null : roomManager.GetGameState(room);
+            if (state is not null)
+                await Clients.Group(roomId).SendAsync("GameState", state);
+        }
         public async Task SendMessage(
             string roomId,
             string userName,

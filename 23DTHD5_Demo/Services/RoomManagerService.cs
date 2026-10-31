@@ -22,6 +22,13 @@ public class RoomState
     public HashSet<string> SpectatorIds { get; } = new(StringComparer.Ordinal);
     public ConcurrentDictionary<string, DateTimeOffset> InviteTokens { get; } = new(StringComparer.Ordinal);
     public DateTimeOffset CreatedAt { get; set; } = DateTimeOffset.UtcNow;
+
+    // Ván cờ đang diễn ra (server giữ trạng thái duy nhất để hai bên luôn thấy cùng một bàn cờ)
+    public XiangqiGame? Game { get; set; }
+    public string? RedId { get; set; }
+    public string? BlackId { get; set; }
+    public string RedName { get; set; } = string.Empty;
+    public string BlackName { get; set; } = string.Empty;
 }
 
 public class UserPresenceState
@@ -363,12 +370,142 @@ public class RoomManagerService
         }
     }
 
+    // =========================================
+    // Ván cờ (luật cờ tướng chạy ở server)
+    // =========================================
+    private string PlayerName(RoomState room, string userId)
+    {
+        if (userId == room.OwnerId && !string.IsNullOrWhiteSpace(room.Owner)) return room.Owner;
+        if (_presence.TryGetValue(userId, out var state) && !string.IsNullOrWhiteSpace(state.DisplayName))
+            return state.DisplayName;
+        return userId;
+    }
+
+    /// <summary>Tạo ván mới khi phòng đủ 2 người chơi (hoặc khi ván cũ đã kết thúc và người chơi đã thay đổi).</summary>
+    public bool EnsureGame(RoomState room)
+    {
+        lock (room.SyncRoot)
+        {
+            if (room.PlayerIds.Count < 2) return false;
+            if (room.Game is not null)
+            {
+                var playersChanged = room.Game.IsFinished
+                    && (room.RedId is null || room.BlackId is null
+                        || !room.PlayerIds.Contains(room.RedId) || !room.PlayerIds.Contains(room.BlackId));
+                if (!playersChanged) return false;
+            }
+
+            var ownerId = room.PlayerIds.Contains(room.OwnerId) ? room.OwnerId : room.PlayerIds.First();
+            var otherId = room.PlayerIds.First(id => id != ownerId);
+            var ownerIsRed = room.Side switch
+            {
+                "red" => true,
+                "black" => false,
+                _ => RandomNumberGenerator.GetInt32(2) == 0
+            };
+            StartGame(room, ownerIsRed ? ownerId : otherId, ownerIsRed ? otherId : ownerId);
+            return true;
+        }
+    }
+
+    private void StartGame(RoomState room, string redId, string blackId)
+    {
+        room.Game = new XiangqiGame();
+        room.RedId = redId;
+        room.BlackId = blackId;
+        room.RedName = PlayerName(room, redId);
+        room.BlackName = PlayerName(room, blackId);
+        room.Status = "playing";
+    }
+
+    /// <summary>Chơi lại: đổi phe, chỉ người chơi trong phòng được yêu cầu và chỉ khi ván đã kết thúc.</summary>
+    public (bool Ok, string? Error) Rematch(RoomState room, string userId)
+    {
+        lock (room.SyncRoot)
+        {
+            if (room.Game is null || !room.Game.IsFinished) return (false, "Ván cờ chưa kết thúc.");
+            if (userId != room.RedId && userId != room.BlackId) return (false, "Chỉ người chơi mới được bắt đầu ván mới.");
+            if (room.RedId is null || room.BlackId is null
+                || !room.PlayerIds.Contains(room.RedId) || !room.PlayerIds.Contains(room.BlackId))
+                return (false, "Phòng chưa đủ hai người chơi.");
+            StartGame(room, room.BlackId, room.RedId);
+            return (true, null);
+        }
+    }
+
+    public GameStateDto? GetGameState(RoomState room)
+    {
+        lock (room.SyncRoot)
+        {
+            return room.Game is null ? null : BuildState(room);
+        }
+    }
+
+    private static GameStateDto BuildState(RoomState room)
+    {
+        var game = room.Game!;
+        return new GameStateDto
+        {
+            RoomId = room.Id,
+            Pieces = game.Pieces.ToList(),
+            Turn = game.Turn,
+            InCheck = game.InCheck,
+            Finished = game.IsFinished,
+            Winner = game.Winner,
+            Reason = game.EndReason,
+            MoveNumber = game.MoveNumber,
+            LastMove = game.LastMove,
+            RedId = room.RedId,
+            BlackId = room.BlackId,
+            RedName = room.RedName,
+            BlackName = room.BlackName
+        };
+    }
+
+    public (bool Ok, string? Error, GameStateDto? State) TryMove(
+        RoomState room, string userId, string pieceId, int toRow, int toCol)
+    {
+        lock (room.SyncRoot)
+        {
+            if (room.Game is null) return (false, "Ván cờ chưa bắt đầu. Cần đủ 2 người chơi.", null);
+            var color = userId == room.RedId ? XiangqiGame.Red
+                : userId == room.BlackId ? XiangqiGame.Black
+                : string.Empty;
+            var result = room.Game.TryMove(color, pieceId, toRow, toCol);
+            return (result.Ok, result.Error, BuildState(room));
+        }
+    }
+
+    public List<int[]> GetLegalMoves(RoomState room, string userId, string pieceId)
+    {
+        lock (room.SyncRoot)
+        {
+            var game = room.Game;
+            var result = new List<int[]>();
+            if (game is null || game.IsFinished) return result;
+            var color = userId == room.RedId ? XiangqiGame.Red : userId == room.BlackId ? XiangqiGame.Black : string.Empty;
+            var piece = game.GetPiece(pieceId);
+            if (piece is null || piece.Color != color || game.Turn != color) return result;
+            foreach (var (row, col) in game.LegalMoves(piece)) result.Add([row, col]);
+            return result;
+        }
+    }
+
     public void LeaveRoom(string userId, string roomId)
     {
         if (_rooms.TryGetValue(roomId, out var room))
         {
             lock (room.SyncRoot)
             {
+                // Rời phòng giữa ván: đối thủ thắng
+                if (room.Game is { IsFinished: false } game)
+                {
+                    if (userId == room.RedId) game.EndGame(XiangqiGame.Black, "opponent_left");
+                    else if (userId == room.BlackId) game.EndGame(XiangqiGame.Red, "opponent_left");
+                    if (game.IsFinished && !room.OwnerId.StartsWith("seed_", StringComparison.Ordinal))
+                        room.Status = "waiting";
+                }
+
                 // Keep seed rooms intact so test cases stay repeatable
                 if (!room.OwnerId.StartsWith("seed_", StringComparison.Ordinal))
                 {
